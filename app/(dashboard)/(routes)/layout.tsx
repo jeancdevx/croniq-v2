@@ -1,3 +1,5 @@
+'use client'
+
 import { DashboardSidebar } from '@/modules/dashboard/ui/components/dashboard-sidebar'
 
 import {
@@ -15,11 +17,15 @@ import {
   SidebarTrigger
 } from '@/components/ui/sidebar'
 
+import { useBreadcrumbs } from './hooks/use-breadcrumbs'
+
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const breadcrumbs = useBreadcrumbs()
+
   return (
     <SidebarProvider>
       <DashboardSidebar />
@@ -36,12 +42,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <BreadcrumbList>
                 <BreadcrumbItem className='hidden md:block'>
                   <BreadcrumbLink href='#'>
-                    Building Your Application
+                    {breadcrumbs.category}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className='hidden md:block' />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
+                  <BreadcrumbPage>{breadcrumbs.page}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>

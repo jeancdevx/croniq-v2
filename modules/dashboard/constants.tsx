@@ -3,6 +3,7 @@ import {
   Bot,
   Frame,
   Map,
+  MessageSquare,
   PieChart,
   Settings2,
   SquareTerminal,
@@ -69,24 +70,20 @@ export const sidebarData: sidebarDataItems = {
       ]
     },
     {
-      title: 'Documentation',
-      url: '#',
-      icon: BookOpen,
+      title: 'Envío de Mensajes',
+      url: '/messages',
+      icon: MessageSquare,
       items: [
         {
-          title: 'Introduction',
+          title: 'Recordatorios',
+          url: '/messages/reminders'
+        },
+        {
+          title: 'Historial',
           url: '#'
         },
         {
-          title: 'Get Started',
-          url: '#'
-        },
-        {
-          title: 'Tutorials',
-          url: '#'
-        },
-        {
-          title: 'Changelog',
+          title: 'Configuración',
           url: '#'
         }
       ]
