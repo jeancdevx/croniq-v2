@@ -119,4 +119,17 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Personalizar flechas del input number para dark mode */
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    opacity: 1;
+    cursor: pointer;
+  }
+
+  /* Estilos para inputs number en dark mode */
+  input[type='number'].bg-zinc-800::-webkit-inner-spin-button,
+  input[type='number'].bg-zinc-800::-webkit-outer-spin-button {
+    filter: invert(0.6);
+  }
 }
