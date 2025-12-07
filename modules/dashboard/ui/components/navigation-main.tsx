@@ -36,7 +36,7 @@ interface NavigationMainProps {
 const NavigationMain = ({ items }: NavigationMainProps) => {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Plataforma</SidebarGroupLabel>
+      <SidebarGroupLabel>Control Principal</SidebarGroupLabel>
 
       <SidebarMenu>
         {items.map(item => (

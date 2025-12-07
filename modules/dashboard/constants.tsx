@@ -1,12 +1,11 @@
 import {
-  BookOpen,
-  Bot,
   Frame,
   Map,
-  MessageSquare,
+  MessageSquareIcon,
   PieChart,
-  Settings2,
+  PieChartIcon,
   SquareTerminal,
+  Wallet2Icon,
   type LucideIcon
 } from 'lucide-react'
 
@@ -31,48 +30,55 @@ type sidebarDataItems = {
 export const sidebarData: sidebarDataItems = {
   navMain: [
     {
-      title: 'Playground',
-      url: '#',
+      title: 'Dashboard',
+      url: '/',
       icon: SquareTerminal,
       isActive: true,
       items: [
         {
-          title: 'History',
-          url: '#'
-        },
-        {
-          title: 'Starred',
-          url: '#'
-        },
-        {
-          title: 'Settings',
-          url: '#'
+          title: 'Clientes',
+          url: '/clients'
         }
       ]
     },
     {
-      title: 'Models',
-      url: '#',
-      icon: Bot,
+      title: 'Prestamos',
+      url: '/loans',
+      icon: Wallet2Icon,
       items: [
         {
-          title: 'Genesis',
-          url: '#'
+          title: 'Listado de Préstamos',
+          url: '/loans'
         },
         {
-          title: 'Explorer',
-          url: '#'
+          title: 'Registrar Préstamo',
+          url: '/loans/new'
+        }
+      ]
+    },
+    {
+      title: 'Pagos',
+      url: '/payments',
+      icon: PieChartIcon,
+      items: [
+        {
+          title: 'Listado de Pagos',
+          url: '/payments'
         },
         {
-          title: 'Quantum',
-          url: '#'
+          title: 'Registrar Pago',
+          url: '/payments/new'
+        },
+        {
+          title: 'Comprobantes',
+          url: '/payments/receipts'
         }
       ]
     },
     {
       title: 'Envío de Mensajes',
       url: '/messages',
-      icon: MessageSquare,
+      icon: MessageSquareIcon,
       items: [
         {
           title: 'Recordatorios',
@@ -84,29 +90,6 @@ export const sidebarData: sidebarDataItems = {
         },
         {
           title: 'Configuración',
-          url: '#'
-        }
-      ]
-    },
-    {
-      title: 'Settings',
-      url: '#',
-      icon: Settings2,
-      items: [
-        {
-          title: 'General',
-          url: '#'
-        },
-        {
-          title: 'Team',
-          url: '#'
-        },
-        {
-          title: 'Billing',
-          url: '#'
-        },
-        {
-          title: 'Limits',
           url: '#'
         }
       ]
