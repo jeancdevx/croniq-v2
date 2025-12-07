@@ -57,9 +57,11 @@ export function TablaPrestamos({
   }
 
   return (
-    <Card>
+    <Card className='border-border/40 bg-card/50'>
       <CardHeader>
-        <CardTitle>Resultados del Registro (Tabla de Préstamos)</CardTitle>
+        <CardTitle className='text-lg font-semibold'>
+          📊 Préstamos Registrados ({prestamos.length})
+        </CardTitle>
         <CardAction>
           <div className='flex gap-2'>
             <Button
@@ -67,15 +69,17 @@ export function TablaPrestamos({
               size='sm'
               onClick={handleExportar}
               disabled={prestamos.length === 0}
+              className='border-emerald-500/20 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
             >
               <Download className='mr-2 size-4' />
               Exportar
             </Button>
             <Button
-              variant='destructive'
+              variant='outline'
               size='sm'
               onClick={handleLimpiar}
               disabled={prestamos.length === 0}
+              className='border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20'
             >
               <Trash2 className='mr-2 size-4' />
               Limpiar
@@ -84,25 +88,35 @@ export function TablaPrestamos({
         </CardAction>
       </CardHeader>
       <CardContent>
-        <div className='overflow-hidden rounded-lg border'>
+        <div className='border-border/40 overflow-hidden rounded-lg border'>
           <div className='overflow-x-auto'>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha Registro</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>DNI</TableHead>
-                  <TableHead>PEP</TableHead>
-                  <TableHead className='text-right'>Monto (S/.)</TableHead>
-                  <TableHead className='text-right'>Plazo (Meses)</TableHead>
-                  <TableHead className='text-right'>Cuota Fija (S/.)</TableHead>
-                  <TableHead className='text-right'>
-                    Mora Mensual (1%)
+                <TableRow className='border-border/40 bg-muted/50 hover:bg-muted/50'>
+                  <TableHead className='font-semibold'>
+                    Fecha Registro
                   </TableHead>
-                  <TableHead className='text-right'>
-                    Total a Pagar (S/.)
+                  <TableHead className='font-semibold'>Nombre</TableHead>
+                  <TableHead className='font-semibold'>DNI</TableHead>
+                  <TableHead className='font-semibold'>PEP</TableHead>
+                  <TableHead className='text-right font-semibold'>
+                    Monto (S/.)
                   </TableHead>
-                  <TableHead className='text-right'>TCEA</TableHead>
+                  <TableHead className='text-right font-semibold'>
+                    Plazo
+                  </TableHead>
+                  <TableHead className='text-right font-semibold'>
+                    Cuota Fija
+                  </TableHead>
+                  <TableHead className='text-right font-semibold'>
+                    Mora (1%)
+                  </TableHead>
+                  <TableHead className='text-right font-semibold'>
+                    Total a Pagar
+                  </TableHead>
+                  <TableHead className='text-right font-semibold'>
+                    TCEA
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -110,39 +124,70 @@ export function TablaPrestamos({
                   <TableRow>
                     <TableCell
                       colSpan={10}
-                      className='text-muted-foreground py-8 text-center'
+                      className='text-muted-foreground py-12 text-center'
                     >
-                      No hay préstamos registrados
+                      <div className='flex flex-col items-center gap-2'>
+                        <span className='text-4xl'>📋</span>
+                        <p className='text-sm'>No hay préstamos registrados</p>
+                        <p className='text-xs'>
+                          Comienza registrando tu primer préstamo arriba
+                        </p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   prestamos.map(prestamo => (
-                    <TableRow key={prestamo.id}>
+                    <TableRow
+                      key={prestamo.id}
+                      className='border-border/40 hover:bg-muted/30 transition-colors'
+                    >
                       <TableCell className='font-medium'>
-                        {formatearFechaHora(prestamo.fechaRegistro)}
+                        <span className='text-muted-foreground text-xs'>
+                          {formatearFechaHora(prestamo.fechaRegistro)}
+                        </span>
                       </TableCell>
-                      <TableCell>{prestamo.cliente.nombreCompleto}</TableCell>
-                      <TableCell>{prestamo.cliente.dni}</TableCell>
+                      <TableCell className='font-medium'>
+                        {prestamo.cliente.nombreCompleto}
+                      </TableCell>
+                      <TableCell className='font-mono text-sm'>
+                        {prestamo.cliente.dni}
+                      </TableCell>
                       <TableCell>
-                        {prestamo.cliente.esPep ? 'Sí' : 'No'}
+                        {prestamo.cliente.esPep ? (
+                          <span className='inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400'>
+                            Sí
+                          </span>
+                        ) : (
+                          <span className='text-muted-foreground text-xs'>
+                            No
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className='text-right font-semibold'>
+                        <span className='text-emerald-400'>
+                          S/. {prestamo.monto.toFixed(2)}
+                        </span>
                       </TableCell>
                       <TableCell className='text-right'>
-                        S/. {prestamo.monto.toFixed(2)}
+                        <span className='text-muted-foreground text-sm'>
+                          {prestamo.plazo} meses
+                        </span>
                       </TableCell>
-                      <TableCell className='text-right'>
-                        {prestamo.plazo}
-                      </TableCell>
-                      <TableCell className='text-right'>
+                      <TableCell className='text-right font-medium'>
                         S/. {prestamo.cuotaMensual.toFixed(2)}
                       </TableCell>
                       <TableCell className='text-right'>
-                        S/. {prestamo.moraMensual.toFixed(2)}
+                        <span className='text-sm text-amber-400'>
+                          S/. {prestamo.moraMensual.toFixed(2)}
+                        </span>
                       </TableCell>
-                      <TableCell className='text-right'>
+                      <TableCell className='text-right font-semibold'>
                         S/. {prestamo.totalPagar.toFixed(2)}
                       </TableCell>
                       <TableCell className='text-right'>
-                        {prestamo.tcea.toFixed(2)}%
+                        <span className='inline-flex items-center rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400'>
+                          {prestamo.tcea.toFixed(2)}%
+                        </span>
                       </TableCell>
                     </TableRow>
                   ))

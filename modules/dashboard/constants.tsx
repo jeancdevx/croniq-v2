@@ -43,16 +43,16 @@ export const sidebarData: sidebarDataItems = {
     },
     {
       title: 'Prestamos',
-      url: '/loans',
+      url: '/prestamos',
       icon: Wallet2Icon,
       items: [
         {
           title: 'Listado de Préstamos',
-          url: '/loans'
+          url: '/prestamos'
         },
         {
           title: 'Registrar Préstamo',
-          url: '/loans/new'
+          url: '/prestamos/registrar'
         }
       ]
     },
