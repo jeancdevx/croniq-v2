@@ -231,15 +231,15 @@ export default function MessagesReminderPage() {
   const proximos = MOCK_DATA.filter(c => c.estado === 'proximo')
 
   return (
-    <div className='flex flex-1 flex-col gap-4 p-4 pt-0'>
+    <div className='flex flex-col gap-4'>
       {/* ============================================================ */}
       {/* BARRA UNIFICADA: CONFIGURACIÓN + KPIs */}
       {/* ============================================================ */}
       <Card className='border-border shadow-sm'>
-        <CardContent className='p-4'>
-          <div className='flex items-center justify-between gap-8'>
+        <CardContent>
+          <div className='flex flex-col items-center justify-between gap-6'>
             {/* CONFIGURACIÓN (Izquierda) */}
-            <div className='flex flex-1 items-center gap-6'>
+            <div className='flex items-center gap-6'>
               <Label className='text-foreground text-sm font-medium whitespace-nowrap'>
                 Días de anticipación:
               </Label>
