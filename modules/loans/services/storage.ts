@@ -1,6 +1,6 @@
 'use client'
 
-import { Prestamo } from '../domain/types'
+import { Prestamo } from '@/modules/loans/domain/types'
 
 const STORAGE_KEY = 'croniq_prestamos'
 

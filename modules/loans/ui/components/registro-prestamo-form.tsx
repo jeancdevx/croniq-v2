@@ -6,15 +6,18 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 
+import { Prestamo } from '@/modules/loans/domain/types'
+import { agregarPrestamo } from '@/modules/loans/services/storage'
+import {
+  crearPrestamo,
+  obtenerFechaHoy
+} from '@/modules/loans/utils/loan-calculations'
+
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
-import { Prestamo } from '../domain/types'
-import { agregarPrestamo } from '../services/storage'
-import { crearPrestamo, obtenerFechaHoy } from '../utils/loan-calculations'
 
 const formSchema = z.object({
   dni: z

@@ -1,4 +1,8 @@
-import { CuotaPrestamo, Prestamo, RegistroPrestamoForm } from '../domain/types'
+import {
+  CuotaPrestamo,
+  Prestamo,
+  RegistroPrestamoForm
+} from '@/modules/loans/domain/types'
 
 /**
  * Genera el cronograma de pagos para un préstamo

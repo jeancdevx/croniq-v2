@@ -2,6 +2,13 @@
 
 import { Download, Trash2 } from 'lucide-react'
 
+import { Prestamo } from '@/modules/loans/domain/types'
+import {
+  eliminarTodosPrestamos,
+  exportarPrestamosCSV
+} from '@/modules/loans/services/storage'
+import { formatearFechaHora } from '@/modules/loans/utils/loan-calculations'
+
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -18,13 +25,6 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-
-import { Prestamo } from '../domain/types'
-import {
-  eliminarTodosPrestamos,
-  exportarPrestamosCSV
-} from '../services/storage'
-import { formatearFechaHora } from '../utils/loan-calculations'
 
 interface TablaPrestamosProps {
   prestamos: Prestamo[]
