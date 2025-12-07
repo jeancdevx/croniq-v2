@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistema de registro de préstamos y pagos
 
-## Getting Started
+Aplicación web para digitalizar la gestión de préstamos de un negocio. El
+objetivo es eliminar errores manuales al identificar clientes y registrar cada
+operación, además de generar un cronograma de pagos claro para el negocio y para
+el cliente.
 
-First, run the development server:
+## Problema planteado
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Un negocio de préstamos llevaba el control de forma manual, lo que generaba
+fallos al identificar clientes y al registrar la información de cada préstamo.
+Se requiere:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Registrar préstamos con datos completos: cliente, fecha, monto, interés y
+  plazo.
+- Generar un cronograma de pagos para el cliente y para el negocio.
+- Registrar pagos y aplicar mora del 1% mensual sobre la deuda.
+- Emitir comprobantes de pago al cliente.
+- Permitir el cuadre de caja para validar ingresos y pagos.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Enfoque propuesto
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Identificación confiable de clientes:** flujo de autenticación y validación
+  de identidad en rutas dedicadas (`app/(auth)/(routes)/`).
+- **Registro de préstamos y pagos:** formularios guiados con validaciones,
+  almacenamiento transaccional y trazabilidad de cada operación.
+- **Cronograma de pagos automático:** cálculo de cuotas, fechas y mora mensual
+  del 1% para mantener actualizado el estado de deuda.
+- **Comprobantes y notificaciones:** generación de recibos descargables o
+  enviables por correo/SMS tras cada pago.
+- **Cuadre de caja:** reportes diarios/mensuales para comparar pagos registrados
+  vs. ingresos proyectados.
+- **Arquitectura modular:** páginas en `app/` optimizadas para SSR/ISR y lógica
+  de features en `modules/` para reutilizar componentes UI, acciones de servidor
+  y hooks.
 
-## Learn More
+## Estructura base
 
-To learn more about Next.js, take a look at the following resources:
+- **Páginas (Next.js 16 con cache components):** `app/` usa route groups para
+  separar contextos (por ejemplo, `app/(auth)/(routes)/sign-in/page.tsx`).
+- **Módulos de features:** lógica de cliente y servidor organizada por dominio:
+  `modules/<feature>/ui`, `modules/<feature>/server`,
+  `modules/<feature>/queries`, `modules/<feature>/hooks`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Estado del proyecto
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+El repositorio arranca con la configuración de Next.js 16, React 19.2, Tailwind
+CSS v4 y shadcn/ui. Los detalles de colaboración y del stack técnico completo se
+documentan en los archivos `CONTRIBUTING.md` y `TECH_STACK.md`.

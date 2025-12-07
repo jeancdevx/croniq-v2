@@ -3,5 +3,9 @@ interface AuthLayoutProps {
 }
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
-  return <main>{children}</main>
+  return (
+    <main className='flex min-h-svh flex-1 items-center justify-center'>
+      {children}
+    </main>
+  )
 }
