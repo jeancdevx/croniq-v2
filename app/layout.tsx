@@ -1,10 +1,14 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Nunito } from 'next/font/google'
 
-import '../styles/globals.css'
+import { ClerkProvider } from '@clerk/nextjs'
 
-const inter = Inter({
-  variable: '--font-inter',
+import { Toaster } from '@/components/ui/sonner'
+
+import '@/styles/globals.css'
+
+const nunito = Nunito({
+  variable: '--font-nunito',
   subsets: ['latin'],
   weight: ['400', '700', '900']
 })
@@ -20,8 +24,14 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang='es'>
-      <body className={`${inter.className} antialiased`}>{children}</body>
-    </html>
+    <ClerkProvider>
+      <html lang='es'>
+        <body className={`${nunito.className} antialiased`}>
+          {children}
+
+          <Toaster richColors />
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }
