@@ -29,12 +29,14 @@ const DashboardSidebar = ({
       <SidebarHeader>
         <DashboardHeader />
       </SidebarHeader>
+
       <Separator />
 
       <SidebarContent>
         <NavigationMain items={sidebarData.navMain} />
         <NavigationProjects projects={sidebarData.projects} />
       </SidebarContent>
+
       <Separator />
 
       <SidebarFooter className='h-16 px-1 group-data-[state=collapsed]:px-2 group-data-[state=collapsed]:py-3'>
