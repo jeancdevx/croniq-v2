@@ -3,6 +3,7 @@ import { Nunito } from 'next/font/google'
 
 import { ClerkProvider } from '@clerk/nextjs'
 
+import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 
 import '@/styles/globals.css'
@@ -27,9 +28,16 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang='es'>
         <body className={`${nunito.className} antialiased`}>
-          {children}
+          <ThemeProvider
+            attribute='class'
+            defaultTheme='system'
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
 
-          <Toaster richColors />
+            <Toaster richColors />
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>
