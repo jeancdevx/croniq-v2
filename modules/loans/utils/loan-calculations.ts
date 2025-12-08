@@ -100,21 +100,65 @@ export function actualizarEstadoCuotas(prestamo: Prestamo): Prestamo {
     if (cuota.estado === 'pagada') return cuota
 
     const diasAtraso = calcularDiasAtraso(cuota.fechaVencimiento)
-    const moraAcumulada =
-      diasAtraso > 0 ? calcularMora(cuota.montoCuota, diasAtraso) : 0
+    const moraAcumulada = calcularMora(cuota.montoCuota, diasAtraso)
 
     return {
       ...cuota,
       diasAtraso,
       moraAcumulada,
-      estado: diasAtraso > 0 ? ('atrasada' as const) : ('pendiente' as const)
-    }
+      estado: diasAtraso > 0 ? 'atrasada' : 'pendiente'
+    } as CuotaPrestamo // Explicit cast needed because we are mapping
   })
 
   return {
     ...prestamo,
     cronogramaPagos: cronogramaActualizado
   }
+}
+
+export interface DetalleCuota {
+  numeroCuota: number
+  fechaVencimiento: string
+  totalCuota: number
+  capital: number
+  interes: number
+  saldoRestante: number
+}
+
+/**
+ * Calcula el cronograma detallado con capital e intereses
+ */
+export function calcularCronogramaDetallado(
+  monto: number,
+  tasaAnual: number,
+  plazo: number,
+  fechaDesembolso: string
+): DetalleCuota[] {
+  const tasaMensual = Math.pow(1 + tasaAnual / 100, 1 / 12) - 1
+  const cuotaMensual = calcularCuotaMensual(monto, tasaAnual, plazo)
+
+  let saldo = monto
+  const schedule: DetalleCuota[] = []
+  const fechaInicio = new Date(fechaDesembolso)
+
+  for (let i = 1; i <= plazo; i++) {
+    const interes = saldo * tasaMensual
+    const capital = cuotaMensual - interes
+    saldo -= capital
+
+    const fechaVencimiento = new Date(fechaInicio)
+    fechaVencimiento.setMonth(fechaVencimiento.getMonth() + i)
+
+    schedule.push({
+      numeroCuota: i,
+      fechaVencimiento: fechaVencimiento.toISOString().split('T')[0],
+      totalCuota: cuotaMensual,
+      capital,
+      interes,
+      saldoRestante: saldo > 0 ? saldo : 0
+    })
+  }
+  return schedule
 }
 
 /**

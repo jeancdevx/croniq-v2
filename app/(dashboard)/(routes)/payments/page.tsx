@@ -31,7 +31,7 @@ export default async function PaymentsPage() {
         : p.estado === 'PENDIENTE'
           ? 'Pendiente'
           : 'Fallido',
-    url: p.url || undefined
+    url: undefined
   }))
 
   return (

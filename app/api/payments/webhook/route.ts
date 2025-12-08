@@ -1,10 +1,11 @@
+import { revalidatePath } from 'next/cache'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { getFlowOrderStatus } from '@/minibackend/payments/flow-service'
 import { eq } from 'drizzle-orm'
 
-import { getDb } from '@/lib/db'
-import { pagoFlow } from '@/lib/db/schema/pago-flow.schema'
+import { getDb } from '@/db'
+import { pagoFlow } from '@/db/schema/pago-flow.schema'
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,6 +35,9 @@ export async function POST(req: NextRequest) {
           fechaPago: status.status === 2 ? new Date() : null
         })
         .where(eq(pagoFlow.flowOrder, status.commerceOrder))
+
+      // Trigger revalidation for the payments list
+      revalidatePath('/payments')
     }
 
     return NextResponse.json({ received: true })

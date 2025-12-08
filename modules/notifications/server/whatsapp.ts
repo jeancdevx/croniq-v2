@@ -25,14 +25,9 @@ export async function sendWhatsappMessage(phone: string, message: string) {
       },
       body: JSON.stringify({
         number: formattedPhone,
-        options: {
-          delay: 1200,
-          presence: 'composing',
-          linkPreview: true
-        },
-        textMessage: {
-          text: message
-        }
+        text: message,
+        delay: 1200,
+        linkPreview: true
       })
     })
 

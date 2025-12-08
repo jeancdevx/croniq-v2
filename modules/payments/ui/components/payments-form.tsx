@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Check, ChevronsUpDown, Loader2, Send } from 'lucide-react'
 
 import {
   generatePaymentLink,
+  getLoansByClientId,
   resendPaymentLink
 } from '@/minibackend/payments/actions'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -14,7 +15,7 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import * as z from 'zod'
 
-import { Cliente } from '@/lib/db/types'
+import { Cliente, Prestamo } from '@/db/types'
 import { cn } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -47,10 +49,20 @@ import {
   PopoverContent,
   PopoverTrigger
 } from '@/components/ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 
 const formSchema = z.object({
   clientId: z.string().min(1, {
     message: 'Por favor seleccione un cliente.'
+  }),
+  loanId: z.string().min(1, {
+    message: 'Por favor seleccione un préstamo.'
   }),
   amount: z.coerce.number().min(1, {
     message: 'El monto debe ser mayor a 0.'
@@ -66,6 +78,8 @@ interface PaymentsFormProps {
 
 export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingLoans, setIsLoadingLoans] = useState(false)
+  const [loans, setLoans] = useState<Prestamo[]>([])
   const [open, setOpen] = useState(false)
   const [generatedLink, setGeneratedLink] = useState<{
     url: string
@@ -74,14 +88,40 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
     amount: number
   } | null>(null)
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       clientId: '',
+      loanId: '',
       amount: 0,
       concept: ''
     }
   })
+
+  // Watch for clientId changes to fetch loans
+  const selectedClientId = form.watch('clientId')
+
+  useEffect(() => {
+    const fetchLoans = async () => {
+      if (!selectedClientId) {
+        setLoans([])
+        return
+      }
+
+      setIsLoadingLoans(true)
+      try {
+        const fetchedLoans = await getLoansByClientId(selectedClientId)
+        setLoans(fetchedLoans)
+      } catch (error) {
+        console.error('Error fetching loans:', error)
+        toast.error('Error al cargar los préstamos del cliente')
+      } finally {
+        setIsLoadingLoans(false)
+      }
+    }
+
+    fetchLoans()
+  }, [selectedClientId])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const selectedClient = clients.find(client => client.id === values.clientId)
@@ -283,6 +323,63 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
               )}
             />
 
+            {selectedClientId && (
+              <FormField
+                control={form.control}
+                name='loanId'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Préstamo (Opcional)</FormLabel>
+                    <Select
+                      onValueChange={value => {
+                        field.onChange(value)
+                        const loan = loans.find(l => l.id === value)
+                        if (loan) {
+                          form.setValue(
+                            'concept',
+                            `Pago Préstamo - ${new Date(loan.createdAt).toLocaleDateString()}`
+                          )
+                        }
+                      }}
+                      defaultValue={field.value}
+                      disabled={isLoadingLoans}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={
+                              isLoadingLoans
+                                ? 'Cargando préstamos...'
+                                : 'Seleccionar préstamo'
+                            }
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {loans.length === 0 ? (
+                          <SelectItem value='none' disabled>
+                            No hay préstamos activos
+                          </SelectItem>
+                        ) : (
+                          loans.map(loan => (
+                            <SelectItem key={loan.id} value={loan.id}>
+                              Préstamo del{' '}
+                              {new Date(loan.createdAt).toLocaleDateString()} -
+                              S/ {Number(loan.montoSolicitado).toFixed(2)}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Selecciona un préstamo para asociar el pago.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             <FormField
               control={form.control}
               name='amount'
@@ -290,7 +387,12 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
                 <FormItem>
                   <FormLabel>Monto (PEN)</FormLabel>
                   <FormControl>
-                    <Input type='number' placeholder='0.00' {...field} />
+                    <Input
+                      type='number'
+                      placeholder='0.00'
+                      {...field}
+                      value={field.value as number}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

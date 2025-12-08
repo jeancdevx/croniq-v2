@@ -19,7 +19,7 @@ export const prestamo = pgTable('prestamo', {
     precision: 12,
     scale: 2
   }).notNull(),
-  tasaInteres: decimal('tasa_interes', { precision: 5, scale: 4 }).notNull(),
+  tasaInteres: decimal('tasa_interes', { precision: 10, scale: 2 }).notNull(),
   numeroCuotas: integer('numero_cuotas').notNull(),
   frecuencia: varchar('frecuencia', { length: 20 })
     .default('MENSUAL')

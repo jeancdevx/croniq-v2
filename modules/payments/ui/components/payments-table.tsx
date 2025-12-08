@@ -2,10 +2,21 @@
 
 import { useState } from 'react'
 
-import { Download, ExternalLink, FileText, Search } from 'lucide-react'
+import {
+  Copy,
+  Download,
+  ExternalLink,
+  MoreHorizontal,
+  QrCode,
+  Search,
+  Trash
+} from 'lucide-react'
 
+import { cancelPayment } from '@/minibackend/payments/actions'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { QRCodeCanvas } from 'qrcode.react'
+import { toast } from 'sonner'
 
 import { Pago } from '@/modules/payments/domain/types'
 
@@ -18,6 +29,20 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -67,6 +92,8 @@ const MOCK_PAGOS: Pago[] = [
 
 export function PaymentsTable({ pagos = MOCK_PAGOS }: PaymentsTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [qrOpen, setQrOpen] = useState(false)
+  const [selectedUrl, setSelectedUrl] = useState<string | null>(null)
 
   const filteredPagos = pagos.filter(
     pago =>
@@ -172,23 +199,84 @@ export function PaymentsTable({ pagos = MOCK_PAGOS }: PaymentsTableProps) {
                       </Badge>
                     </TableCell>
                     <TableCell className='text-right'>
-                      {pago.url && (
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          title='Ir al Link de Pago'
-                          onClick={() => window.open(pago.url, '_blank')}
-                        >
-                          <ExternalLink className='h-4 w-4' />
-                        </Button>
-                      )}
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        title='Ver Comprobante'
-                      >
-                        <FileText className='h-4 w-4' />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant='ghost' className='h-8 w-8 p-0'>
+                            <span className='sr-only'>Abrir menú</span>
+                            <MoreHorizontal className='h-4 w-4' />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align='end'>
+                          <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              navigator.clipboard.writeText(pago.id)
+                              toast.success('ID de pago copiado')
+                            }}
+                          >
+                            <Copy className='mr-2 h-4 w-4' />
+                            Copiar ID Pago
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {pago.url ? (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => window.open(pago.url, '_blank')}
+                              >
+                                <ExternalLink className='mr-2 h-4 w-4' />
+                                Ir al Link de Pago
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (pago.url) {
+                                    navigator.clipboard.writeText(pago.url)
+                                    toast.success(
+                                      'Link copiado al portapapeles'
+                                    )
+                                  }
+                                }}
+                              >
+                                <Copy className='mr-2 h-4 w-4' />
+                                Copiar Link
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (pago.url) {
+                                    setSelectedUrl(pago.url)
+                                    setQrOpen(true)
+                                  }
+                                }}
+                              >
+                                <QrCode className='mr-2 h-4 w-4' />
+                                Ver QR
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <DropdownMenuItem disabled>
+                              <ExternalLink className='mr-2 h-4 w-4' />
+                              Sin Link de Pago
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            disabled={pago.estado !== 'Pendiente'}
+                            onClick={async () => {
+                              const result = await cancelPayment(pago.id)
+                              if (result.success) {
+                                toast.success('Pago cancelado correctamente')
+                              } else {
+                                toast.error(
+                                  result.error || 'Error al cancelar el pago'
+                                )
+                              }
+                            }}
+                            className='text-red-600 focus:text-red-600'
+                          >
+                            <Trash className='mr-2 h-4 w-4' />
+                            Cancelar Pago
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -197,6 +285,43 @@ export function PaymentsTable({ pagos = MOCK_PAGOS }: PaymentsTableProps) {
           </Table>
         </div>
       </CardContent>
+
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>Código QR de Pago</DialogTitle>
+          </DialogHeader>
+          <div className='flex items-center justify-center p-6'>
+            {selectedUrl && (
+              <div className='rounded-lg bg-white p-4'>
+                <QRCodeCanvas value={selectedUrl} size={256} level='H' />
+              </div>
+            )}
+          </div>
+          <div className='flex justify-center'>
+            <Button
+              variant='outline'
+              onClick={() => {
+                const canvas = document.querySelector('canvas')
+                if (canvas) {
+                  const pngUrl = canvas
+                    .toDataURL('image/png')
+                    .replace('image/png', 'image/octet-stream')
+                  const downloadLink = document.createElement('a')
+                  downloadLink.href = pngUrl
+                  downloadLink.download = 'qr-pago.png'
+                  document.body.appendChild(downloadLink)
+                  downloadLink.click()
+                  document.body.removeChild(downloadLink)
+                }
+              }}
+            >
+              <Download className='mr-2 h-4 w-4' />
+              Descargar QR
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

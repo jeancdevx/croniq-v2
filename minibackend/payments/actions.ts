@@ -1,22 +1,92 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, not } from 'drizzle-orm'
 
-import { getDb } from '@/lib/db'
-import { cliente } from '@/lib/db/schema/cliente.schema'
-import { pagoFlow } from '@/lib/db/schema/pago-flow.schema'
+import { getDb } from '@/db'
+import { cliente } from '@/db/schema/cliente.schema'
+import { pagoFlow } from '@/db/schema/pago-flow.schema'
+import { prestamo } from '@/db/schema/prestamo.schema'
 
 import { sendWhatsappMessage } from '@/modules/notifications/server/whatsapp'
 
+import { getFlowConfig } from './flow-config'
 import { createFlowOrder } from './flow-service'
+
+export async function getLoansByClientId(clientId: string) {
+  const db = getDb()
+  if (!db) return []
+
+  try {
+    const loans = await db
+      .select()
+      .from(prestamo)
+      .where(eq(prestamo.clienteId, clientId))
+      .orderBy(desc(prestamo.createdAt))
+
+    return loans
+  } catch (error) {
+    console.error('Error fetching loans:', error)
+    return []
+  }
+}
+
+export async function getPaymentByToken(token: string) {
+  const db = getDb()
+  if (!db) return null
+
+  try {
+    const payment = await db.query.pagoFlow.findFirst({
+      where: eq(pagoFlow.flowToken, token)
+    })
+
+    return payment
+  } catch (error) {
+    console.error('Error fetching payment by token:', error)
+    return null
+  }
+}
 
 export async function getFlowPayments() {
   const db = getDb()
   if (!db) return []
 
-  return await db.select().from(pagoFlow).orderBy(desc(pagoFlow.fechaCreacion))
+  const payments = await db
+    .select()
+    .from(pagoFlow)
+    .where(not(eq(pagoFlow.estado, 'CANCELADO')))
+    .orderBy(desc(pagoFlow.fechaCreacion))
+
+  const { env } = getFlowConfig()
+  const paymentBaseUrl =
+    env === 'production'
+      ? 'https://www.flow.cl/app/web/pay.php'
+      : 'https://sandbox.flow.cl/app/web/pay.php'
+
+  return payments.map(p => ({
+    ...p,
+    url: p.flowToken ? `${paymentBaseUrl}?token=${p.flowToken}` : null
+  }))
+}
+
+export async function cancelPayment(id: string) {
+  const db = getDb()
+  if (!db) return { success: false, error: 'No database connection' }
+
+  try {
+    await db
+      .update(pagoFlow)
+      .set({ estado: 'CANCELADO' })
+      .where(eq(pagoFlow.id, id))
+
+    revalidatePath('/payments')
+    return { success: true }
+  } catch (error) {
+    console.error('Error canceling payment:', error)
+    return { success: false, error: 'Error al cancelar el pago' }
+  }
 }
 
 export async function generatePaymentLink(data: {
@@ -55,7 +125,7 @@ export async function generatePaymentLink(data: {
       // IMPORTANTE: Para que Flow notifique a tu servidor, esta URL debe ser pública.
       // En desarrollo (localhost), Flow NO podrá llamar a esta URL a menos que uses ngrok.
       urlConfirmation: `${baseUrl}/api/payments/webhook`,
-      urlReturn: `${baseUrl}/payments/receipts`,
+      urlReturn: `${baseUrl}/api/payments/return`,
       currency: 'PEN'
     })
 
