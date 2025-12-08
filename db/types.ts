@@ -20,6 +20,11 @@ export type NewPago = InferInsertModel<typeof schema.pago>
 
 export type MedioPago = 'EFECTIVO' | 'YAPE' | 'PLIN' | 'TRANSFERENCIA'
 
+export type PagoFlow = InferSelectModel<typeof schema.pagoFlow>
+export type NewPagoFlow = InferInsertModel<typeof schema.pagoFlow>
+
+export type EstadoPagoFlow = 'PENDIENTE' | 'PAGADO' | 'RECHAZADO'
+
 export type Movimiento = InferSelectModel<typeof schema.movimientos>
 export type NewMovimiento = InferInsertModel<typeof schema.movimientos>
 
@@ -36,6 +41,10 @@ export type PrestamoConCuotas = Prestamo & {
 
 export type CuotaConPago = Cuota & {
   pago: Pago | null
+}
+
+export type PagoConFlow = Pago & {
+  pagoFlow: PagoFlow | null
 }
 
 export type PrestamoCompleto = Prestamo & {
