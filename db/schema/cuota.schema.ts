@@ -11,10 +11,6 @@ import {
 
 import { prestamo } from './prestamo.schema'
 
-/**
- * Tabla: cuota
- * Almacena el cronograma de pagos proyectado para cada préstamo
- */
 export const cuota = pgTable(
   'cuota',
   {
@@ -37,7 +33,6 @@ export const cuota = pgTable(
       .notNull()
   },
   table => ({
-    // Constraint único para evitar duplicados de cuota por préstamo
     uniquePrestamoNumeroCuota: unique().on(table.prestamoId, table.numeroCuota)
   })
 )

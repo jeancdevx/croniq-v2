@@ -1,19 +1,17 @@
 import { desc } from 'drizzle-orm'
 
-import { getDb } from '@/lib/db'
-import { cliente } from '@/lib/db/schema/cliente.schema'
-import { Cliente } from '@/lib/db/types'
+import { getDb } from '@/db'
+import { cliente } from '@/db/schema'
+import { Cliente } from '@/db/types'
 
 export const getData = async (): Promise<Cliente[]> => {
-  const db = getDb()
-  if (!db) return []
-
   try {
-    const clients = await db
+    const db = getDb()
+    const clientes = await db
       .select()
       .from(cliente)
       .orderBy(desc(cliente.createdAt))
-    return clients
+    return clientes
   } catch (error) {
     console.error('Error fetching clients:', error)
     return []

@@ -7,10 +7,6 @@ import {
   varchar
 } from 'drizzle-orm/pg-core'
 
-/**
- * Tabla: movimientos
- * Registro de caja para control de ingresos y egresos
- */
 export const movimientos = pgTable('movimientos', {
   id: uuid('id').defaultRandom().primaryKey(),
   fechaMovimiento: timestamp('fecha_movimiento', {

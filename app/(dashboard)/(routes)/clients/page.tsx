@@ -1,7 +1,13 @@
-export default function ClientsPage() {
-  return (
-    <div>
-      <h1>ClientsPage</h1>
-    </div>
-  )
+import { redirect } from 'next/navigation'
+
+import { auth } from '@clerk/nextjs/server'
+
+import { ClientsView } from '@/modules/clients/ui/views'
+
+export default async function ClientsPage() {
+  const { isAuthenticated } = await auth()
+
+  if (!isAuthenticated) redirect('/sign-in')
+
+  return <ClientsView />
 }
