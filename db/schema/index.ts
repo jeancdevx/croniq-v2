@@ -1,5 +1,7 @@
 export * from './cliente.schema'
 export * from './cuota.schema'
 export * from './movimientos.schema'
+export * from './pago-flow.schema'
 export * from './pago.schema'
 export * from './prestamo.schema'
+export * from './relations'

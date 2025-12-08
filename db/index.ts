@@ -1,9 +1,9 @@
-import { drizzle } from 'drizzle-orm/postgres-js'
+import { drizzle, PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 
 import * as schema from './schema'
 
-let db: ReturnType<typeof drizzle> | null = null
+let db: PostgresJsDatabase<typeof schema> | null = null
 
 export function getDb() {
   if (!db) {

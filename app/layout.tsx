@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang='es'>
+      <html lang='es' suppressHydrationWarning>
         <body className={`${nunito.className} antialiased`}>
           <ThemeProvider
             attribute='class'

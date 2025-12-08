@@ -1,16 +1,13 @@
-'use client'
-
+import { getData } from '@/modules/clients/data/get-data'
 import { RegistroPrestamoForm } from '@/modules/loans/ui/components/registro-prestamo-form'
 
-export default function RegistrarPrestamoPage() {
-  const handlePrestamoCreado = () => {
-    // Mostrar mensaje de éxito o redirigir
-    alert('✅ Préstamo registrado exitosamente')
-  }
+export default async function RegistrarPrestamoPage() {
+  const clientes = await getData()
+  console.log('Clientes cargados para registro de préstamo:', clientes.length)
 
   return (
     <div className='flex flex-1 flex-col gap-4 p-4 pt-0'>
-      <RegistroPrestamoForm onPrestamoCreado={handlePrestamoCreado} />
+      <RegistroPrestamoForm clientes={clientes} />
     </div>
   )
 }

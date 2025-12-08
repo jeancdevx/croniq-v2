@@ -13,18 +13,22 @@ export async function searchDni(dni: string): Promise<DniSearchResponse> {
       }
     }
 
-    const apiUrl = process.env.SUNAT_API_URL
-    const bearerToken = process.env.SUNAT_BEARER_TOKEN
+    const apiUrl = process.env.FACTILIZA_API_URL
+    const bearerToken = process.env.FACTILIZA_BEARER_TOKEN
 
     if (!apiUrl || !bearerToken) {
-      console.error('Missing SUNAT API configuration')
+      console.error('Missing FACTILIZA API configuration')
       return {
         success: false,
         error: 'Configuración de API no disponible'
       }
     }
 
-    const response = await fetch(`${apiUrl}/${dni}`, {
+    const url = apiUrl.includes('[DNI]')
+      ? apiUrl.replace('[DNI]', dni)
+      : `${apiUrl}/${dni}`
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${bearerToken}`,

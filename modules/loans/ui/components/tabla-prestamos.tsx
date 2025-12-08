@@ -1,13 +1,11 @@
 'use client'
 
-import { Download, Trash2 } from 'lucide-react'
+import { Download } from 'lucide-react'
 
-import { Prestamo } from '@/modules/loans/domain/types'
-import {
-  eliminarTodosPrestamos,
-  exportarPrestamosCSV
-} from '@/modules/loans/services/storage'
-import { formatearFechaHora } from '@/modules/loans/utils/loan-calculations'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
+
+import { PrestamoConCuotas } from '@/db/types'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -27,33 +25,13 @@ import {
 } from '@/components/ui/table'
 
 interface TablaPrestamosProps {
-  prestamos: Prestamo[]
-  onPrestamosActualizados: () => void
+  prestamos: PrestamoConCuotas[]
 }
 
-export function TablaPrestamos({
-  prestamos,
-  onPrestamosActualizados
-}: TablaPrestamosProps) {
+export function TablaPrestamos({ prestamos }: TablaPrestamosProps) {
   const handleExportar = () => {
-    exportarPrestamosCSV(prestamos)
-  }
-
-  const handleLimpiar = () => {
-    if (prestamos.length === 0) {
-      alert('No hay préstamos para limpiar.')
-      return
-    }
-
-    if (
-      confirm(
-        '¿Estás seguro de que deseas eliminar todos los préstamos registrados?'
-      )
-    ) {
-      eliminarTodosPrestamos()
-      onPrestamosActualizados()
-      alert('Historial limpiado exitosamente.')
-    }
+    // TODO: Implement export functionality for DB loans
+    alert('Funcionalidad de exportación en desarrollo')
   }
 
   return (
@@ -74,16 +52,6 @@ export function TablaPrestamos({
               <Download className='mr-2 size-4' />
               Exportar
             </Button>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={handleLimpiar}
-              disabled={prestamos.length === 0}
-              className='border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20'
-            >
-              <Trash2 className='mr-2 size-4' />
-              Limpiar
-            </Button>
           </div>
         </CardAction>
       </CardHeader>
@@ -93,29 +61,20 @@ export function TablaPrestamos({
             <Table>
               <TableHeader>
                 <TableRow className='border-border/40 bg-muted/50 hover:bg-muted/50'>
-                  <TableHead className='font-semibold'>
-                    Fecha Registro
-                  </TableHead>
-                  <TableHead className='font-semibold'>Nombre</TableHead>
+                  <TableHead className='font-semibold'>Fecha</TableHead>
+                  <TableHead className='font-semibold'>Cliente</TableHead>
                   <TableHead className='font-semibold'>DNI</TableHead>
-                  <TableHead className='font-semibold'>PEP</TableHead>
                   <TableHead className='text-right font-semibold'>
-                    Monto (S/.)
+                    Monto
                   </TableHead>
                   <TableHead className='text-right font-semibold'>
                     Plazo
                   </TableHead>
                   <TableHead className='text-right font-semibold'>
-                    Cuota Fija
+                    Tasa
                   </TableHead>
                   <TableHead className='text-right font-semibold'>
-                    Mora (1%)
-                  </TableHead>
-                  <TableHead className='text-right font-semibold'>
-                    Total a Pagar
-                  </TableHead>
-                  <TableHead className='text-right font-semibold'>
-                    TCEA
+                    Estado
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -123,7 +82,7 @@ export function TablaPrestamos({
                 {prestamos.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={10}
+                      colSpan={7}
                       className='text-muted-foreground py-12 text-center'
                     >
                       <div className='flex flex-col items-center gap-2'>
@@ -143,50 +102,35 @@ export function TablaPrestamos({
                     >
                       <TableCell className='font-medium'>
                         <span className='text-muted-foreground text-xs'>
-                          {formatearFechaHora(prestamo.fechaRegistro)}
+                          {format(
+                            prestamo.createdAt || new Date(),
+                            'dd/MM/yyyy HH:mm',
+                            { locale: es }
+                          )}
                         </span>
                       </TableCell>
                       <TableCell className='font-medium'>
-                        {prestamo.cliente.nombreCompleto}
+                        {prestamo.cliente.nombres} {prestamo.cliente.apellidos}
                       </TableCell>
                       <TableCell className='font-mono text-sm'>
                         {prestamo.cliente.dni}
                       </TableCell>
-                      <TableCell>
-                        {prestamo.cliente.esPep ? (
-                          <span className='inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400'>
-                            Sí
-                          </span>
-                        ) : (
-                          <span className='text-muted-foreground text-xs'>
-                            No
-                          </span>
-                        )}
-                      </TableCell>
                       <TableCell className='text-right font-semibold'>
                         <span className='text-emerald-400'>
-                          S/. {prestamo.monto.toFixed(2)}
+                          S/. {parseFloat(prestamo.montoSolicitado).toFixed(2)}
                         </span>
                       </TableCell>
                       <TableCell className='text-right'>
                         <span className='text-muted-foreground text-sm'>
-                          {prestamo.plazo} meses
+                          {prestamo.numeroCuotas} meses
                         </span>
                       </TableCell>
                       <TableCell className='text-right font-medium'>
-                        S/. {prestamo.cuotaMensual.toFixed(2)}
-                      </TableCell>
-                      <TableCell className='text-right'>
-                        <span className='text-sm text-amber-400'>
-                          S/. {prestamo.moraMensual.toFixed(2)}
-                        </span>
-                      </TableCell>
-                      <TableCell className='text-right font-semibold'>
-                        S/. {prestamo.totalPagar.toFixed(2)}
+                        {parseFloat(prestamo.tasaInteres).toFixed(2)}%
                       </TableCell>
                       <TableCell className='text-right'>
                         <span className='inline-flex items-center rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400'>
-                          {prestamo.tcea.toFixed(2)}%
+                          {prestamo.estado}
                         </span>
                       </TableCell>
                     </TableRow>
