@@ -15,7 +15,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <SidebarInset className='m-0!'>
         <DashboardBreadcrumb />
 
-        <div className='min-h-[calc(100vh-4rem)] px-4'>{children}</div>
+        <div className='container mx-auto min-h-[calc(100vh-4rem)] px-4'>
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )
