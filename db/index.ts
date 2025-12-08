@@ -3,11 +3,6 @@ import postgres from 'postgres'
 
 import * as schema from './schema'
 
-/**
- * Singleton de conexión a PostgreSQL con Drizzle ORM
- * Garantiza una única instancia de conexión en toda la aplicación
- */
-
 let db: ReturnType<typeof drizzle> | null = null
 
 export function getDb() {
@@ -20,14 +15,12 @@ export function getDb() {
       )
     }
 
-    // Crear cliente PostgreSQL con configuración de pool
     const client = postgres(connectionString, {
-      max: 10, // Máximo de conexiones en el pool
-      idle_timeout: 20, // Tiempo de inactividad antes de cerrar conexión (segundos)
-      connect_timeout: 10 // Timeout para establecer conexión (segundos)
+      max: 10,
+      idle_timeout: 20,
+      connect_timeout: 10
     })
 
-    // Crear instancia de Drizzle con los schemas
     db = drizzle(client, { schema })
 
     if (process.env.NODE_ENV === 'development') {
@@ -38,6 +31,5 @@ export function getDb() {
   return db
 }
 
-// Exportar schemas para uso directo
 export * from './schema'
-// export * from './types' // Descomentar cuando se necesiten los tipos
+export * from './types'

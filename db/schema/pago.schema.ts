@@ -2,16 +2,11 @@ import { decimal, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
 import { cuota } from './cuota.schema'
 
-/**
- * Tabla: pago
- * Almacena los pagos reales recibidos de los clientes
- * Relación 1:1 con cuota (una cuota tiene un solo pago)
- */
 export const pago = pgTable('pago', {
   id: uuid('id').defaultRandom().primaryKey(),
   cuotaId: uuid('cuota_id')
     .notNull()
-    .unique() // UNIQUE constraint para garantizar relación 1:1
+    .unique()
     .references(() => cuota.id, { onDelete: 'restrict' }),
   fechaPago: timestamp('fecha_pago', { withTimezone: true }).notNull(),
   montoTotalRecibido: decimal('monto_total_recibido', {
