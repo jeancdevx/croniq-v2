@@ -10,10 +10,6 @@ import {
 
 import { cliente } from './cliente.schema'
 
-/**
- * Tabla: prestamo
- * Almacena la cabecera de los préstamos otorgados
- */
 export const prestamo = pgTable('prestamo', {
   id: uuid('id').defaultRandom().primaryKey(),
   clienteId: uuid('cliente_id')

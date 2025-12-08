@@ -1,9 +1,5 @@
 import { pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core'
 
-/**
- * Tabla: cliente
- * Almacena información básica de los clientes
- */
 export const cliente = pgTable('cliente', {
   id: uuid('id').defaultRandom().primaryKey(),
   dni: varchar('dni', { length: 20 }).notNull().unique(),
