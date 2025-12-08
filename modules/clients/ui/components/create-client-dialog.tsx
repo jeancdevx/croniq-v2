@@ -156,12 +156,15 @@ export function CreateClientDialog({
                   <div className='flex gap-2'>
                     <FormControl>
                       <Input
+                        type='password'
                         placeholder='12345678'
                         disabled={isLoading || isSearching}
                         maxLength={8}
                         {...field}
                         onChange={e => {
-                          field.onChange(e)
+                          // Solo permitir números
+                          const value = e.target.value.replace(/\D/g, '')
+                          field.onChange(value)
                           setDniFound(false)
                         }}
                       />
