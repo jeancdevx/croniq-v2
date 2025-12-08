@@ -2,12 +2,13 @@
 
 import { Fragment } from 'react/jsx-runtime'
 
+import Link from 'next/link'
+
 import { useBreadcrumb } from '@/modules/dashboard/hooks'
 
 import {
   Breadcrumb,
   BreadcrumbItem,
-  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator
@@ -19,7 +20,7 @@ const DashboardBreadcrumb = () => {
   const segments = useBreadcrumb()
 
   return (
-    <header className='sticky top-0 flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
+    <header className='bg-background/70 sticky top-0 flex h-16 shrink-0 items-center gap-2 backdrop-blur-md transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12'>
       <div className='flex items-center gap-2 px-4'>
         <SidebarTrigger className='-ml-1' />
 
@@ -34,9 +35,13 @@ const DashboardBreadcrumb = () => {
               <Fragment key={seg.url + idx}>
                 <BreadcrumbItem>
                   {idx < segments.length - 1 ? (
-                    <BreadcrumbLink href={seg.url}>{seg.title}</BreadcrumbLink>
+                    <Link className='capitalize' href={seg.url}>
+                      {seg.title}
+                    </Link>
                   ) : (
-                    <BreadcrumbPage>{seg.title}</BreadcrumbPage>
+                    <BreadcrumbPage className='capitalize'>
+                      {seg.title}
+                    </BreadcrumbPage>
                   )}
                 </BreadcrumbItem>
                 {idx < segments.length - 1 && <BreadcrumbSeparator />}
