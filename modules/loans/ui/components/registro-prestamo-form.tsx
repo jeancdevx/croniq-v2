@@ -19,6 +19,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
+import { CronogramaModal } from './cronograma-modal'
+
 const formSchema = z.object({
   dni: z
     .string()
@@ -43,6 +45,8 @@ export function RegistroPrestamoForm({
   onPrestamoCreado
 }: RegistroPrestamoFormProps) {
   const [esPep, setEsPep] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [prestamoCreado, setPrestamoCreado] = useState<Prestamo | null>(null)
   const fechaHoy = obtenerFechaHoy()
 
   const {
@@ -71,6 +75,8 @@ export function RegistroPrestamoForm({
     })
 
     agregarPrestamo(prestamo)
+    setPrestamoCreado(prestamo)
+    setModalOpen(true)
     onPrestamoCreado(prestamo)
 
     reset()
@@ -280,6 +286,12 @@ export function RegistroPrestamoForm({
           </Button>
         </form>
       </CardContent>
+
+      <CronogramaModal
+        prestamo={prestamoCreado}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+      />
     </Card>
   )
 }
