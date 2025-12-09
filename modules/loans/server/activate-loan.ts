@@ -7,6 +7,8 @@ import { eq } from 'drizzle-orm'
 import { getDb } from '@/db'
 import { prestamo } from '@/db/schema'
 
+import { hasActiveLoan } from './validate-loan-rules'
+
 interface ActivateLoanResult {
   success: boolean
   error?: string
@@ -36,6 +38,16 @@ export async function activateLoan(
       return {
         success: false,
         error: 'Solo se pueden activar préstamos en estado borrador'
+      }
+    }
+
+    // Verificar que el cliente no tenga otro préstamo ACTIVO
+    const hasActive = await hasActiveLoan(existingLoan.clienteId)
+    if (hasActive) {
+      return {
+        success: false,
+        error:
+          'El cliente ya tiene un préstamo activo. No se puede activar otro préstamo.'
       }
     }
 
