@@ -11,6 +11,30 @@ export const calculateFrenchInstallment = (
   return monto * (tem / (1 - Math.pow(1 + tem, -plazo)))
 }
 
+/**
+ * Calcula el interés de un período usando TEA base 360 días (SBS Perú)
+ * con días reales del período
+ *
+ * Fórmula: i_periodo = (1 + TEA)^(días_reales/360) - 1
+ *
+ * @param saldoPendiente - Saldo sobre el cual calcular interés
+ * @param tea - Tasa Efectiva Anual (decimal, ej: 0.22 para 22%)
+ * @param diasReales - Número de días reales del período (28, 29, 30, 31)
+ * @returns Interés del período
+ */
+export const calculateInterestForPeriod = (
+  saldoPendiente: number,
+  tea: number,
+  diasReales: number
+): number => {
+  // i_t = (1 + TEA)^(t/360) - 1
+  const tasaPeriodo = Math.pow(1 + tea, diasReales / 360) - 1
+  return saldoPendiente * tasaPeriodo
+}
+
+/**
+ * Calcula interés usando TEM (para sistema simplificado)
+ */
 export const calculateInterest = (
   saldoPendiente: number,
   tem: number
@@ -18,11 +42,26 @@ export const calculateInterest = (
   return saldoPendiente * tem
 }
 
+/**
+ * Calcula el seguro de desgravamen prorrateado por días reales
+ * según estándar BBVA/SBS Perú
+ *
+ * Fórmula: F_t = F_30 × (días_reales/30)
+ *          Prima = saldo × F_t
+ *
+ * @param saldoPendiente - Saldo sobre el cual calcular el seguro
+ * @param tasaMensual - Tasa mensual base 30 días (ej: 0.0018 para 0.18%)
+ * @param diasReales - Días reales del período (28, 29, 30, 31, etc.)
+ * @returns Prima de seguro del período
+ */
 export const calculateInsurance = (
   saldoPendiente: number,
-  tasaSeguro: number = 0.0018
+  tasaMensual: number,
+  diasReales: number
 ): number => {
-  return saldoPendiente * tasaSeguro
+  // Prorratear la tasa mensual por días reales
+  const tasaPeriodo = tasaMensual * (diasReales / 30)
+  return saldoPendiente * tasaPeriodo
 }
 
 export const calculateDisbursementFee = (
@@ -32,6 +71,51 @@ export const calculateDisbursementFee = (
   return montoSolicitado * porcentaje
 }
 
+/**
+ * Calcula TCEA usando días reales / 360 (método BBVA/SBS Perú)
+ *
+ * @param montoDesembolsado - Monto que recibe el cliente
+ * @param cuotas - Array de objetos {monto, diasDesdeDesembolso}
+ * @returns TCEA anual (decimal)
+ */
+export const calculateTCEAWithDays = (
+  montoDesembolsado: number,
+  cuotas: Array<{ monto: number; dias: number }>
+): number => {
+  // Método de Newton-Raphson para encontrar la TCEA
+  // VPN = -montoDesembolsado + sum(cuota[i] / (1+TCEA)^(días[i]/360)) = 0
+
+  let tcea = 0.25 // Estimación inicial: 25% anual
+  const epsilon = 0.000001
+  const maxIterations = 100
+
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    let vpn = -montoDesembolsado
+    let derivada = 0
+
+    for (const cuota of cuotas) {
+      const exponente = cuota.dias / 360
+      const factor = Math.pow(1 + tcea, exponente)
+      vpn += cuota.monto / factor
+      derivada -= (exponente * cuota.monto) / (factor * (1 + tcea))
+    }
+
+    const tceaNueva = tcea - vpn / derivada
+
+    if (Math.abs(tceaNueva - tcea) < epsilon) {
+      return tceaNueva
+    }
+
+    tcea = tceaNueva
+  }
+
+  return tcea
+}
+
+/**
+ * Calcula TCEA usando períodos mensuales (método simplificado)
+ * DEPRECATED: Usar calculateTCEAWithDays para cálculos precisos
+ */
 export const calculateTCEA = (
   montoDesembolsado: number,
   cuotas: number[], // Array de cuotas mensuales
