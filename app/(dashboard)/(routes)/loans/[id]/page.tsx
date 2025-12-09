@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 
 import { getLoanById } from '@/modules/loans/data/get-loan-by-id'
+import { LoanDetailActiveView } from '@/modules/loans/ui/views/loan-detail-active-view'
 import { LoanDetailDraftView } from '@/modules/loans/ui/views/loan-detail-draft-view'
 
 import { Button } from '@/components/ui/button'
@@ -38,11 +39,5 @@ export default async function LoanDetailPage({ params }: LoanDetailPageProps) {
     return <LoanDetailDraftView loan={loan} />
   }
 
-  // TODO: Vista para préstamos ACTIVO/FINALIZADO
-  return (
-    <div className='p-8'>
-      <h1>Vista ACTIVO - Por implementar</h1>
-      <pre>{JSON.stringify(loan, null, 2)}</pre>
-    </div>
-  )
+  return <LoanDetailActiveView loan={loan} />
 }

@@ -1,4 +1,4 @@
-import { getFlowPayments } from '@/minibackend/payments/actions'
+import { getAllPayments } from '@/proxy/payments/actions'
 
 import {
   Receipt,
@@ -17,15 +17,15 @@ import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 
 export default async function ReceiptsPage() {
-  const flowPayments = await getFlowPayments()
+  const allPayments = await getAllPayments()
 
-  const receipts: Receipt[] = flowPayments
-    .filter(p => p.estado === 'PAGADO')
+  const receipts: Receipt[] = allPayments
+    .filter(p => p.estado === 'Completado')
     .map(p => ({
       id: p.id,
-      nroRecibo: p.flowOrder,
-      cliente: p.concepto,
-      fecha: p.fechaPago || p.fechaCreacion,
+      nroRecibo: p.codigoOperacion || 'S/N',
+      cliente: p.clienteNombre,
+      fecha: p.fechaPago,
       monto: Number(p.monto),
       estado: 'Emitido',
       urlPdf: '#' // En el futuro se podría generar un PDF real

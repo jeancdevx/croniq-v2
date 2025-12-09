@@ -12,11 +12,10 @@ export const pago = pgTable('pago', {
   id: uuid('id').defaultRandom().primaryKey(),
   cuotaId: uuid('cuota_id')
     .notNull()
-    .unique()
     .references(() => cuota.id, { onDelete: 'restrict' }),
-  pagoFlowId: uuid('pago_flow_id')
-    .unique() // UNIQUE constraint para garantizar relación 1:1
-    .references(() => pagoFlow.id, { onDelete: 'restrict' }),
+  pagoFlowId: uuid('pago_flow_id').references(() => pagoFlow.id, {
+    onDelete: 'restrict'
+  }),
   fechaPago: timestamp('fecha_pago', { withTimezone: true }).notNull(),
   montoTotalRecibido: decimal('monto_total_recibido', {
     precision: 12,

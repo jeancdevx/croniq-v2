@@ -4,10 +4,11 @@ export interface Pago {
   clienteDni: string
   fechaPago: Date
   monto: number
-  medioPago: 'Efectivo' | 'Transferencia' | 'Flow' | 'Yape' | 'Plin'
+  medioPago: string
   codigoOperacion?: string
   estado: 'Completado' | 'Pendiente' | 'Fallido'
   url?: string
+  type?: 'FLOW' | 'CASH'
 }
 
 export type NuevoPago = Omit<Pago, 'id'>

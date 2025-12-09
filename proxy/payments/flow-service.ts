@@ -90,3 +90,47 @@ export const getFlowOrderStatus = async (token: string) => {
 
   return data
 }
+
+export const getPaymentMethodName = (mediaId: string | number): string => {
+  const mediaMap: Record<string, string> = {
+    '1': 'Tarjeta (Webpay)',
+    '2': 'Servipag',
+    '3': 'Multicaja',
+    '4': 'OnePay',
+    '5': 'CryptoCompra',
+    '9': 'Saldo Flow',
+    '10': 'Mach',
+    '11': 'Khipu',
+    '12': 'Chek',
+    '13': 'Fpay',
+    '20': 'Redcompra',
+    '101': 'Webpay Plus',
+    // Peru specific might vary, but adding common ones or generic fallback
+    yape: 'Yape',
+    pagoefectivo: 'PagoEfectivo'
+  }
+
+  // If it's already a name like "Yape" or "PagoEfectivo", return it formatted
+  const idStr = String(mediaId).toLowerCase()
+  if (idStr.includes('yape')) return 'Yape'
+  if (idStr.includes('pago') && idStr.includes('efectivo'))
+    return 'PagoEfectivo'
+  if (
+    idStr.includes('tarjeta') ||
+    idStr.includes('card') ||
+    idStr.includes('webpay')
+  )
+    return 'Tarjeta'
+
+  // If it's a known ID, return the mapped name
+  if (mediaMap[String(mediaId)]) {
+    return mediaMap[String(mediaId)]
+  }
+
+  // If it's not an ID (likely a name string from Flow), return it as is (capitalized properly if possible)
+  if (isNaN(Number(mediaId))) {
+    return String(mediaId)
+  }
+
+  return `Flow (${mediaId})`
+}
