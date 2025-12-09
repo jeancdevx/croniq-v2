@@ -1,4 +1,7 @@
 export * from './cliente.schema'
+export * from './comprobante-detalle.schema'
+export * from './comprobante-numeracion.schema'
+export * from './comprobante.schema'
 export * from './cuota.schema'
 export * from './movimientos.schema'
 export * from './pago-flow.schema'
