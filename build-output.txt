@@ -1,0 +1,243 @@
+
+> croniq-v2@0.1.0 build C:\Users\Daniela Choncen\repo\croniq-v2
+> next build
+
+   Ôû▓ Next.js 16.0.7 (Turbopack)
+   - Experiments (use with caution):
+     Ô£ô turbopackFileSystemCacheForDev
+
+   Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 8 errors:
+./modules/loans/ui/components/registro-prestamo-form.tsx:16:1
+Module not found: Can't resolve '../services/storage'
+  14 |
+  15 | import { Prestamo } from '../domain/types'
+> 16 | import { agregarPrestamo } from '../services/storage'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  17 | import { crearPrestamo, obtenerFechaHoy } from '../utils/loan-calculations'
+  18 |
+  19 | const formSchema = z.object({
+
+
+
+Import traces:
+  Client Component Browser:
+    ./modules/loans/ui/components/registro-prestamo-form.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./modules/loans/ui/components/registro-prestamo-form.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./modules/loans/ui/components/registro-prestamo-form.tsx:14:1
+Module not found: Can't resolve '../services/storage'
+  12 | import { Label } from '@/components/ui/label';
+  13 | import { Prestamo } from '../domain/types';
+> 14 | import { agregarPrestamo } from '../services/storage';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  15 | import { crearPrestamo, obtenerFechaHoy } from '../utils/loan-calculations';
+  16 | const formSchema = z.object({
+  17 |   dni: z.string().length(8, 'El DNI debe tener 8 d├¡gitos').regex(/^\d+$/, 'Solo n├║meros'),
+
+
+
+Import traces:
+  Client Component Browser:
+    ./modules/loans/ui/components/registro-prestamo-form.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./modules/loans/ui/components/registro-prestamo-form.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./modules/loans/ui/components/tabla-prestamos.tsx:23:1
+Module not found: Can't resolve '../services/storage'
+  21 |
+  22 | import { Prestamo } from '../domain/types'
+> 23 | import {
+     | ^^^^^^^^
+> 24 |   eliminarTodosPrestamos,
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+> 25 |   exportarPrestamosCSV
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+> 26 | } from '../services/storage'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  27 | import { formatearFechaHora } from '../utils/loan-calculations'
+  28 |
+  29 | interface TablaPrestamosProps {
+
+
+
+Import traces:
+  Client Component Browser:
+    ./modules/loans/ui/components/tabla-prestamos.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./modules/loans/ui/components/tabla-prestamos.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./modules/loans/ui/components/tabla-prestamos.tsx:9:1
+Module not found: Can't resolve '../services/storage'
+   7 | import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+   8 | import { Prestamo } from '../domain/types';
+>  9 | import { eliminarTodosPrestamos, exportarPrestamosCSV } from '../services/storage';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  10 | import { formatearFechaHora } from '../utils/loan-calculations';
+  11 | interface TablaPrestamosProps {
+  12 |   prestamos: Prestamo[];
+
+
+
+Import traces:
+  Client Component Browser:
+    ./modules/loans/ui/components/tabla-prestamos.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./modules/loans/ui/components/tabla-prestamos.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./modules/loans/ui/components/registro-prestamo-form.tsx:17:1
+Module not found: Can't resolve '../utils/loan-calculations'
+  15 | import { Prestamo } from '../domain/types'
+  16 | import { agregarPrestamo } from '../services/storage'
+> 17 | import { crearPrestamo, obtenerFechaHoy } from '../utils/loan-calculations'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  18 |
+  19 | const formSchema = z.object({
+  20 |   dni: z
+
+
+
+Import traces:
+  Client Component Browser:
+    ./modules/loans/ui/components/registro-prestamo-form.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./modules/loans/ui/components/registro-prestamo-form.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./modules/loans/ui/components/registro-prestamo-form.tsx:15:1
+Module not found: Can't resolve '../utils/loan-calculations'
+  13 | import { Prestamo } from '../domain/types';
+  14 | import { agregarPrestamo } from '../services/storage';
+> 15 | import { crearPrestamo, obtenerFechaHoy } from '../utils/loan-calculations';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  16 | const formSchema = z.object({
+  17 |   dni: z.string().length(8, 'El DNI debe tener 8 d├¡gitos').regex(/^\d+$/, 'Solo n├║meros'),
+  18 |   nombres: z.string().min(2, 'Ingresa los nombres'),
+
+
+
+Import traces:
+  Client Component Browser:
+    ./modules/loans/ui/components/registro-prestamo-form.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./modules/loans/ui/components/registro-prestamo-form.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./modules/loans/ui/components/tabla-prestamos.tsx:27:1
+Module not found: Can't resolve '../utils/loan-calculations'
+  25 |   exportarPrestamosCSV
+  26 | } from '../services/storage'
+> 27 | import { formatearFechaHora } from '../utils/loan-calculations'
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  28 |
+  29 | interface TablaPrestamosProps {
+  30 |   prestamos: Prestamo[]
+
+
+
+Import traces:
+  Client Component Browser:
+    ./modules/loans/ui/components/tabla-prestamos.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./modules/loans/ui/components/tabla-prestamos.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./modules/loans/ui/components/tabla-prestamos.tsx:10:1
+Module not found: Can't resolve '../utils/loan-calculations'
+   8 | import { Prestamo } from '../domain/types';
+   9 | import { eliminarTodosPrestamos, exportarPrestamosCSV } from '../services/storage';
+> 10 | import { formatearFechaHora } from '../utils/loan-calculations';
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  11 | interface TablaPrestamosProps {
+  12 |   prestamos: Prestamo[];
+  13 |   onPrestamosActualizados: () => void;
+
+
+
+Import traces:
+  Client Component Browser:
+    ./modules/loans/ui/components/tabla-prestamos.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component Browser]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./modules/loans/ui/components/tabla-prestamos.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Client Component SSR]
+    ./app/(dashboard)/(routes)/prestamos/registrar/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (./modules/loans/ui/components/registro-prestamo-form.tsx:16:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./modules/loans/ui/components/registro-prestamo-form.tsx:14:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./modules/loans/ui/components/tabla-prestamos.tsx:23:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./modules/loans/ui/components/tabla-prestamos.tsx:9:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./modules/loans/ui/components/registro-prestamo-form.tsx:17:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./modules/loans/ui/components/registro-prestamo-form.tsx:15:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./modules/loans/ui/components/tabla-prestamos.tsx:27:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (./modules/loans/ui/components/tabla-prestamos.tsx:10:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+ÔÇëELIFECYCLEÔÇë Command failed with exit code 1.
