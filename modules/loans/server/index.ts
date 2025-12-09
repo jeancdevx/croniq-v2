@@ -1,4 +1,6 @@
 export { activateLoan } from './activate-loan'
 export { createLoan } from './create-loan'
 export { deleteDraftLoan } from './delete-draft-loan'
+export { getLoanWithDetails } from './get-loan-with-details'
+export { sendScheduleWhatsApp } from './send-schedule-whatsapp'
 export { updateLoan } from './update-loan'

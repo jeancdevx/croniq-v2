@@ -57,6 +57,20 @@ export async function activateLoan(
       .set({ estado: 'ACTIVO' })
       .where(eq(prestamo.id, loanId))
 
+    // Enviar cronograma automáticamente por WhatsApp
+    try {
+      const { sendScheduleWhatsApp } = await import('./send-schedule-whatsapp')
+      const sendResult = await sendScheduleWhatsApp(loanId)
+
+      if (!sendResult.success) {
+        console.warn('Failed to send schedule automatically:', sendResult.error)
+        // No fallar la activación, solo loguear
+      }
+    } catch (error) {
+      console.error('Error sending schedule automatically:', error)
+      // No fallar la activación
+    }
+
     revalidatePath('/loans')
     revalidatePath(`/loans/${loanId}`)
 
