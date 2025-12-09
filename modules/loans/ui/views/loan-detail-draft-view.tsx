@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 
 import type { PrestamoConCuotas } from '@/db/types'
 
-import { activateLoan } from '@/modules/loans/server'
+import { activateLoan, deleteDraftLoan } from '@/modules/loans/server'
 
 import {
   AlertDialog,
@@ -40,6 +40,7 @@ interface LoanDetailDraftViewProps {
 export function LoanDetailDraftView({ loan }: LoanDetailDraftViewProps) {
   const router = useRouter()
   const [isActivating, setIsActivating] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleActivate = async () => {
     setIsActivating(true)
@@ -63,6 +64,31 @@ export function LoanDetailDraftView({ loan }: LoanDetailDraftViewProps) {
       })
     } finally {
       setIsActivating(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+
+    try {
+      const result = await deleteDraftLoan(loan.id)
+
+      if (result.success) {
+        toast.success('Borrador eliminado', {
+          description: 'El préstamo ha sido eliminado correctamente'
+        })
+        router.push('/loans')
+      } else {
+        toast.error('Error', {
+          description: result.error
+        })
+      }
+    } catch {
+      toast.error('Error', {
+        description: 'Ocurrió un error inesperado'
+      })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -96,12 +122,45 @@ export function LoanDetailDraftView({ loan }: LoanDetailDraftViewProps) {
             <Button variant='outline'>Volver</Button>
           </Link>
           <Link href={`/loans/${loan.id}/edit`}>
-            <Button variant='outline'>Editar</Button>
+            <Button variant='outline' disabled={isDeleting || isActivating}>
+              Editar
+            </Button>
           </Link>
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button disabled={isActivating}>Confirmar Préstamo</Button>
+              <Button
+                variant='destructive'
+                disabled={isDeleting || isActivating}
+              >
+                Eliminar Borrador
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar borrador?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. El préstamo y todas sus
+                  cuotas asociadas serán eliminados permanentemente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                >
+                  {isDeleting ? 'Eliminando...' : 'Eliminar'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button disabled={isActivating || isDeleting}>
+                Confirmar Préstamo
+              </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>

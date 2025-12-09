@@ -14,10 +14,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 
 import { DataTableColumnHeader } from './data-table-column-header'
+import { DeleteDraftButton } from './delete-draft-button'
 
 export const columns: ColumnDef<PrestamoConCuotas>[] = [
   {
@@ -135,6 +137,8 @@ export const columns: ColumnDef<PrestamoConCuotas>[] = [
                 <DropdownMenuItem asChild>
                   <Link href={`/loans/${loan.id}`}>Confirmar préstamo</Link>
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DeleteDraftButton loanId={loan.id} />
               </>
             )}
             <DropdownMenuItem
