@@ -11,8 +11,7 @@ import {
   generateAmortizationSchedule
 } from '../lib/amortization'
 import {
-  calculateDisbursementFee,
-  calculateTCEA,
+  calculateTCEAWithDays,
   calculateTEM,
   roundToFour,
   roundToSix,
@@ -20,6 +19,20 @@ import {
 } from '../lib/financial-calcs'
 import { createLoanSchema } from '../schemas'
 import { validateLoanRules } from './validate-loan-rules'
+
+/**
+ * Helper: Calcula días entre dos fechas
+ */
+const daysBetween = (start: Date, end: Date): number => {
+  const MS_PER_DAY = 1000 * 60 * 60 * 24
+  const startUTC = Date.UTC(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate()
+  )
+  const endUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate())
+  return Math.floor((endUTC - startUTC) / MS_PER_DAY)
+}
 
 interface CreateLoanResult {
   success: boolean
@@ -65,21 +78,20 @@ export async function createLoan(
     const teaDecimal = validatedData.tea
     const tem = roundToSix(calculateTEM(teaDecimal))
 
-    // 4. Calcular comisión EN LA MONEDA DEL PRÉSTAMO (antes de convertir)
-    const comisionDesembolso = roundToTwo(
-      calculateDisbursementFee(validatedData.montoSolicitado, 0.02)
-    )
-    const montoDesembolsado = roundToTwo(
-      validatedData.montoSolicitado - comisionDesembolso
-    )
+    // 4. SIN comisión de desembolso (según SBS Perú 2025)
+    // Monto solicitado = Monto desembolsado
+    const montoDesembolsado = validatedData.montoSolicitado
+    const comisionDesembolso = 0
 
     // 5. Obtener tipo de cambio si las monedas son diferentes
     let tipoCambioDesembolso: number | null = null
 
     if (validatedData.monedaPrestamo !== validatedData.monedaPago) {
-      const fechaStr = new Date(validatedData.fechaDesembolso)
-        .toISOString()
-        .split('T')[0]
+      const hoy = new Date()
+      const year = hoy.getFullYear()
+      const month = String(hoy.getMonth() + 1).padStart(2, '0')
+      const day = String(hoy.getDate()).padStart(2, '0')
+      const fechaStr = `${year}-${month}-${day}`
 
       const exchangeRateResult = await getExchangeRate(fechaStr)
 
@@ -127,14 +139,15 @@ export async function createLoan(
           )
         : totalAPagarEnMonedaPrestamo
 
-    // 9. Calcular TCEA EN LA MONEDA DEL PRÉSTAMO (USD)
-    // IMPORTANTE: TCEA compara lo que RECIBES vs lo que PAGAS en la MISMA moneda
+    // 9. Calcular TCEA EN LA MONEDA DEL PRÉSTAMO usando días reales
+    // TCEA compara lo que RECIBES vs lo que PAGAS usando días/360
+    const cuotasConDias = cronograma.map(c => ({
+      monto: c.totalConSeguro,
+      dias: daysBetween(fechaDesembolso, c.fechaVencimiento)
+    }))
+
     const tcea = roundToFour(
-      calculateTCEA(
-        montoDesembolsado, // USD 9,800 (lo que recibe)
-        cronograma.map(c => c.totalConSeguro), // Cuotas en USD
-        validatedData.numeroCuotas
-      )
+      calculateTCEAWithDays(montoDesembolsado, cuotasConDias)
     )
 
     // 8. Insertar préstamo en la base de datos
@@ -152,8 +165,8 @@ export async function createLoan(
         tcea: tcea.toString(),
         tasaMora: '1.00',
         tasaSeguroDesgravamen: '0.18',
-        comisionDesembolso: comisionDesembolso.toString(),
-        porcentajeComisionDesembolso: '2.00',
+        comisionDesembolso: '0.00',
+        porcentajeComisionDesembolso: '0.00',
         numeroCuotas: validatedData.numeroCuotas,
         frecuencia: 'MENSUAL',
         monedaPrestamo: validatedData.monedaPrestamo,

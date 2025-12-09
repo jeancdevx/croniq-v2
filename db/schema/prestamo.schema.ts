@@ -45,13 +45,13 @@ export const prestamo = pgTable('prestamo', {
   comisionDesembolso: decimal('comision_desembolso', {
     precision: 12,
     scale: 2
-  }).notNull(), // Monto en soles/dólares
+  }).notNull(), // Monto en soles/dólares (SBS 2025: sin comisión)
   porcentajeComisionDesembolso: decimal('porcentaje_comision_desembolso', {
     precision: 5,
     scale: 2
   })
-    .default('2.00')
-    .notNull(), // 2% fijo
+    .default('0.00')
+    .notNull(), // 0% (SBS Perú 2025 - sin comisión de desembolso)
 
   // Plazo y frecuencia
   numeroCuotas: integer('numero_cuotas').notNull(),
