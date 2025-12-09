@@ -73,7 +73,7 @@ export function CronogramaModal({
     mensaje += `*DETALLE DE CUOTAS:*%0A%0A`
 
     prestamo.cronogramaPagos.forEach((cuota: CuotaPrestamo) => {
-      mensaje += `📅 Cuota ${cuota.numeroCuota}%0A`
+      mensaje += `✓ Cuota ${cuota.numeroCuota}%0A`
       mensaje += `Vencimiento: ${cuota.fechaVencimiento}%0A`
       mensaje += `Monto: S/. ${cuota.montoCuota.toFixed(2)}%0A%0A`
     })
