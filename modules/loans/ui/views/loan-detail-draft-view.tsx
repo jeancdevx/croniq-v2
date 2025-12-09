@@ -145,12 +145,12 @@ export function LoanDetailDraftView({ loan }: LoanDetailDraftViewProps) {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
                   className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
                 >
-                  Eliminar
+                  {isDeleting ? 'Eliminando...' : 'Eliminar'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
