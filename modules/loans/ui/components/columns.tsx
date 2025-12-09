@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { MoreHorizontal } from 'lucide-react'
 
 import { ColumnDef } from '@tanstack/react-table'
+import { format, parseISO } from 'date-fns'
 
 import type { PrestamoConCuotas } from '@/db/types'
 
@@ -42,10 +43,13 @@ export const columns: ColumnDef<PrestamoConCuotas>[] = [
     ),
     cell: ({ row }) => {
       const monto = parseFloat(row.getValue('montoSolicitado'))
-      const moneda = row.original.monedaPrestamo
-      const formatted = new Intl.NumberFormat('es-PE', {
+      const moneda = row.original.monedaPrestamo || 'PEN'
+
+      const locale = moneda === 'USD' ? 'en-US' : 'es-PE'
+
+      const formatted = new Intl.NumberFormat(locale, {
         style: 'currency',
-        currency: moneda || 'PEN'
+        currency: moneda
       }).format(monto)
       return <div className='font-medium'>{formatted}</div>
     }
@@ -86,7 +90,7 @@ export const columns: ColumnDef<PrestamoConCuotas>[] = [
     ),
     cell: ({ row }) => {
       const fecha = row.getValue('fechaDesembolso') as string
-      return <div>{new Date(fecha).toLocaleDateString('es-PE')}</div>
+      return <div>{format(parseISO(fecha), 'dd/MM/yyyy')}</div>
     }
   },
   {

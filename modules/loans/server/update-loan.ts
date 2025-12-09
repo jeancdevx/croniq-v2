@@ -87,9 +87,13 @@ export async function updateLoan(
     let tipoCambioDesembolso: number | null = null
 
     if (existingLoan.monedaPrestamo !== validatedData.monedaPago) {
-      const fechaStr = new Date(validatedData.fechaDesembolso)
-        .toISOString()
-        .split('T')[0]
+      const hoy = new Date()
+      const year = hoy.getFullYear()
+      const month = String(hoy.getMonth() + 1).padStart(2, '0')
+      const day = String(hoy.getDate()).padStart(2, '0')
+      const fechaStr = `${year}-${month}-${day}`
+
+      console.log('Fetching exchange rate for TODAY:', fechaStr)
 
       const exchangeRateResult = await getExchangeRate(fechaStr)
 

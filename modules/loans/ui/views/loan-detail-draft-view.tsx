@@ -5,6 +5,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
+import { format, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
 import { toast } from 'sonner'
 
 import type { PrestamoConCuotas } from '@/db/types'
@@ -103,6 +105,11 @@ export function LoanDetailDraftView({ loan }: LoanDetailDraftViewProps) {
     return `${(parseFloat(value) * 100).toFixed(2)}%`
   }
 
+  // Helper para formatear fechas desde ISO string (YYYY-MM-DD)
+  const formatDate = (dateStr: string) => {
+    return format(parseISO(dateStr), 'dd/MM/yyyy', { locale: es })
+  }
+
   return (
     <div className='flex flex-col gap-6 p-8'>
       {/* Header */}
@@ -145,7 +152,9 @@ export function LoanDetailDraftView({ loan }: LoanDetailDraftViewProps) {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                <AlertDialogCancel disabled={isDeleting}>
+                  Cancelar
+                </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
                   className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
@@ -279,16 +288,12 @@ export function LoanDetailDraftView({ loan }: LoanDetailDraftViewProps) {
           </div>
           <div>
             <p className='text-muted-foreground text-sm'>Fecha Desembolso</p>
-            <p className='font-medium'>
-              {new Date(loan.fechaDesembolso).toLocaleDateString('es-PE')}
-            </p>
+            <p className='font-medium'>{formatDate(loan.fechaDesembolso)}</p>
           </div>
           <div>
             <p className='text-muted-foreground text-sm'>Primer Vencimiento</p>
             <p className='font-medium'>
-              {new Date(loan.fechaPrimerVencimiento).toLocaleDateString(
-                'es-PE'
-              )}
+              {formatDate(loan.fechaPrimerVencimiento)}
             </p>
           </div>
           <div>
@@ -359,10 +364,7 @@ export function LoanDetailDraftView({ loan }: LoanDetailDraftViewProps) {
                     <tr key={cuota.id} className='border-b'>
                       <td className='py-2.5'>{cuota.numeroCuota}</td>
                       <td className='py-2.5'>
-                        {new Date(cuota.fechaVencimiento).toLocaleDateString(
-                          'es-PE',
-                          { day: '2-digit', month: '2-digit', year: 'numeric' }
-                        )}
+                        {formatDate(cuota.fechaVencimiento)}
                       </td>
                       <td className='py-2.5 text-right tabular-nums'>
                         {formatNumber(saldoInicial)}
