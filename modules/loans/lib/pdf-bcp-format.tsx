@@ -12,7 +12,7 @@ import {
 import type { PrestamoConCuotas } from '@/db/types'
 
 // Rutas absolutas de imágenes (ahora en public/)
-const LOGO_PATH = path.join(process.cwd(), 'public', 'contapro-logo.png')
+const LOGO_PATH = path.join(process.cwd(), 'public', 'banco-kernel.png')
 const SIGNATURE_PATH = path.join(process.cwd(), 'public', 'signature.png')
 
 // Estilos profesionales estilo BCP
@@ -35,7 +35,8 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: 120,
-    height: 30
+    height: 72, // Mantiene relación de aspecto 1024:617 (120 * 617/1024 ≈ 72)
+    objectFit: 'contain'
   },
   headerTitle: {
     fontSize: 16,
