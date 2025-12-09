@@ -94,7 +94,7 @@ interface PaymentsFormProps {
 }
 
 const COMMISSIONS = {
-  FLOW: { fixed: 0.8 },
+  FLOW: { fixed: 0 }, // Sin comisión - asumida por la empresa
   EFECTIVO: { fixed: 0 }
 }
 

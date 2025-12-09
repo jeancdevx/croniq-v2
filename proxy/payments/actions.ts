@@ -6,11 +6,14 @@ import { headers } from 'next/headers'
 import { and, asc, desc, eq, not } from 'drizzle-orm'
 
 import { getDb } from '@/db'
-import { cliente } from '@/db/schema/cliente.schema'
-import { cuota } from '@/db/schema/cuota.schema'
-import { pagoFlow } from '@/db/schema/pago-flow.schema'
-import { pago } from '@/db/schema/pago.schema'
-import { prestamo } from '@/db/schema/prestamo.schema'
+import {
+  cliente,
+  comprobante,
+  cuota,
+  pago,
+  pagoFlow,
+  prestamo
+} from '@/db/schema'
 
 import { sendWhatsappMessage } from '@/modules/notifications/server/whatsapp'
 
@@ -169,10 +172,78 @@ export async function sendPaymentReceipt(
   if (!db) return { success: false, error: 'No database connection' }
 
   try {
-    let phone = ''
-    let message = ''
+    // Solo para pagos FLOW generamos comprobante PDF
+    if (type === 'FLOW') {
+      // 1. Buscar si ya existe un comprobante para este pago
+      const [existingComprobante] = await db
+        .select()
+        .from(comprobante)
+        .where(eq(comprobante.pagoFlowId, paymentId))
+        .limit(1)
 
-    if (type === 'CASH') {
+      let comprobanteId: string
+
+      if (existingComprobante) {
+        // Ya existe, usar el existente
+        comprobanteId = existingComprobante.id
+      } else {
+        // No existe, generar nuevo comprobante
+        const { generateComprobante } =
+          await import('@/modules/comprobantes/server')
+        const result = await generateComprobante(paymentId)
+
+        if (!result.success || !result.comprobante) {
+          return {
+            success: false,
+            error: result.error || 'Error al generar comprobante'
+          }
+        }
+
+        comprobanteId = result.comprobante.id
+      }
+
+      // 2. Obtener teléfono del cliente
+      const pagoFlowData = await db
+        .select()
+        .from(pagoFlow)
+        .where(eq(pagoFlow.id, paymentId))
+        .limit(1)
+
+      if (pagoFlowData.length === 0) {
+        return { success: false, error: 'Pago no encontrado' }
+      }
+
+      const p = pagoFlowData[0]
+
+      if (!p.prestamoId) {
+        return { success: false, error: 'Pago no asociado a préstamo' }
+      }
+
+      const clientData = await db
+        .select({ phone: cliente.telefono })
+        .from(prestamo)
+        .where(eq(prestamo.id, p.prestamoId))
+        .innerJoin(cliente, eq(prestamo.clienteId, cliente.id))
+        .limit(1)
+
+      if (clientData.length === 0) {
+        return { success: false, error: 'Cliente no encontrado' }
+      }
+
+      // 3. Enviar comprobante por WhatsApp
+      const { sendComprobanteWhatsApp } =
+        await import('@/modules/comprobantes/server')
+      const sendResult = await sendComprobanteWhatsApp(
+        comprobanteId,
+        clientData[0].phone
+      )
+
+      return sendResult
+    } else {
+      // Para pagos en EFECTIVO, mantener mensaje de texto simple
+      let phone = ''
+      let message = ''
+
       const paymentData = await db
         .select({
           monto: pago.montoTotalRecibido,
@@ -188,46 +259,22 @@ export async function sendPaymentReceipt(
         .innerJoin(cliente, eq(prestamo.clienteId, cliente.id))
         .limit(1)
 
-      if (paymentData.length === 0)
+      if (paymentData.length === 0) {
         return { success: false, error: 'Pago no encontrado' }
+      }
+
       const p = paymentData[0]
       phone = p.clientePhone
       message = `Hola ${p.clienteNombre}, confirmamos tu pago en efectivo.\n\nRecibo: ${p.recibo}\nMonto: S/ ${p.monto}\nFecha: ${p.fecha.toLocaleDateString()}`
-    } else {
-      // Flow Payment
-      const paymentData = await db
-        .select()
-        .from(pagoFlow)
-        .where(eq(pagoFlow.id, paymentId))
-        .limit(1)
 
-      if (paymentData.length === 0)
-        return { success: false, error: 'Pago no encontrado' }
-      const p = paymentData[0]
-
-      // Need to find client phone - Flow payment might be linked to a loan -> client
-      if (p.prestamoId) {
-        const clientData = await db
-          .select({ phone: cliente.telefono, nombres: cliente.nombres })
-          .from(prestamo)
-          .where(eq(prestamo.id, p.prestamoId))
-          .innerJoin(cliente, eq(prestamo.clienteId, cliente.id))
-          .limit(1)
-
-        if (clientData.length > 0) {
-          phone = clientData[0].phone
-          message = `Hola ${clientData[0].nombres}, confirmamos tu pago vía Flow.\n\nOrden: ${p.flowOrder}\nMonto: S/ ${p.monto}\nEstado: ${p.estado}`
+      if (phone && message) {
+        await sendWhatsappMessage(phone, message)
+        return { success: true }
+      } else {
+        return {
+          success: false,
+          error: 'No se pudo obtener el teléfono del cliente'
         }
-      }
-    }
-
-    if (phone && message) {
-      await sendWhatsappMessage(phone, message)
-      return { success: true }
-    } else {
-      return {
-        success: false,
-        error: 'No se pudo obtener el teléfono del cliente'
       }
     }
   } catch (error) {
