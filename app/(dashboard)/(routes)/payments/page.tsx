@@ -1,4 +1,4 @@
-import { getFlowPayments } from '@/minibackend/payments/actions'
+import { getAllPayments } from '@/proxy/payments/actions'
 
 import { Pago } from '@/modules/payments/domain/types'
 import { PaymentsTable } from '@/modules/payments/ui/components/payments-table'
@@ -15,23 +15,15 @@ import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 
 export default async function PaymentsPage() {
-  const flowPayments = await getFlowPayments()
+  const allPayments = await getAllPayments()
 
-  const pagos: Pago[] = flowPayments.map(p => ({
-    id: p.id,
-    clienteNombre: p.concepto,
-    clienteDni: p.email,
-    fechaPago: p.fechaPago || p.fechaCreacion,
-    monto: Number(p.monto),
-    medioPago: 'Flow',
-    codigoOperacion: p.flowOrder,
-    estado:
-      p.estado === 'PAGADO'
-        ? 'Completado'
-        : p.estado === 'PENDIENTE'
-          ? 'Pendiente'
-          : 'Fallido',
-    url: undefined
+  // Ensure type compatibility
+  const pagos: Pago[] = allPayments.map(p => ({
+    ...p,
+    codigoOperacion: p.codigoOperacion || undefined,
+    url: p.url || undefined,
+    type: p.type as 'FLOW' | 'CASH' | undefined,
+    estado: p.estado as 'Completado' | 'Pendiente' | 'Fallido'
   }))
 
   return (

@@ -9,10 +9,11 @@ import {
   MoreHorizontal,
   QrCode,
   Search,
+  Send,
   Trash
 } from 'lucide-react'
 
-import { cancelPayment } from '@/minibackend/payments/actions'
+import { cancelPayment, sendPaymentReceipt } from '@/proxy/payments/actions'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -257,6 +258,32 @@ export function PaymentsTable({ pagos = MOCK_PAGOS }: PaymentsTableProps) {
                               Sin Link de Pago
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              toast.promise(
+                                sendPaymentReceipt(
+                                  pago.id,
+                                  pago.type || 'FLOW'
+                                ),
+                                {
+                                  loading: 'Enviando comprobante...',
+                                  success: data => {
+                                    if (data.success)
+                                      return 'Comprobante enviado'
+                                    throw new Error(data.error)
+                                  },
+                                  error: (err: unknown) =>
+                                    err instanceof Error
+                                      ? err.message
+                                      : 'Error al enviar'
+                                }
+                              )
+                            }}
+                          >
+                            <Send className='mr-2 h-4 w-4' />
+                            Enviar Comprobante
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             disabled={pago.estado !== 'Pendiente'}

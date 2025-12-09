@@ -2,11 +2,12 @@ import { Suspense } from 'react'
 
 import { CheckCircle, XCircle } from 'lucide-react'
 
-import { getPaymentByToken } from '@/minibackend/payments/actions'
+import { getPaymentByToken } from '@/proxy/payments/actions'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 import { DownloadReceiptButton } from '@/modules/payments/ui/components/download-receipt-button'
+import { DownloadScheduleButton } from '@/modules/payments/ui/components/download-schedule-button'
 
 import {
   Card,
@@ -113,7 +114,12 @@ async function PaymentDetails({ token }: { token?: string }) {
         </div>
       </div>
 
-      {isSuccess && <DownloadReceiptButton />}
+      {isSuccess && (
+        <div className='flex flex-col gap-3'>
+          <DownloadReceiptButton />
+          <DownloadScheduleButton loanId={payment.prestamoId} />
+        </div>
+      )}
     </div>
   )
 }

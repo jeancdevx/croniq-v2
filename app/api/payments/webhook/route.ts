@@ -1,7 +1,11 @@
 import { revalidatePath } from 'next/cache'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { getFlowOrderStatus } from '@/minibackend/payments/flow-service'
+import { processLoanPayment } from '@/proxy/payments/actions'
+import {
+  getFlowOrderStatus,
+  getPaymentMethodName
+} from '@/proxy/payments/flow-service'
 import { eq } from 'drizzle-orm'
 
 import { getDb } from '@/db'
@@ -28,13 +32,54 @@ export async function POST(req: NextRequest) {
       if (status.status === 2) nuevoEstado = 'PAGADO' // 2 = Pagada
       if (status.status === 3 || status.status === 4) nuevoEstado = 'RECHAZADO'
 
-      await db
-        .update(pagoFlow)
-        .set({
-          estado: nuevoEstado,
-          fechaPago: status.status === 2 ? new Date() : null
-        })
-        .where(eq(pagoFlow.flowOrder, status.commerceOrder))
+      // Check current status to avoid double processing
+      const existingPayment = await db.query.pagoFlow.findFirst({
+        where: eq(pagoFlow.flowOrder, status.commerceOrder)
+      })
+
+      // Extract media from paymentData if available, otherwise fallback
+      const mediaRaw =
+        status.paymentData?.media || status.pending_info?.media || status.media
+
+      if (existingPayment) {
+        // If transitioning to PAGADO for the first time
+        if (existingPayment.estado !== 'PAGADO' && nuevoEstado === 'PAGADO') {
+          await db
+            .update(pagoFlow)
+            .set({
+              estado: 'PAGADO',
+              fechaPago: new Date(),
+              medioPago: getPaymentMethodName(mediaRaw) // Guardar el medio de pago mapeado
+            })
+            .where(eq(pagoFlow.flowOrder, status.commerceOrder))
+
+          // Process Loan Payment Logic
+          if (existingPayment.prestamoId && existingPayment.montoBase) {
+            console.log(
+              `Processing loan payment for loan ${existingPayment.prestamoId}`
+            )
+            await processLoanPayment(
+              existingPayment.prestamoId,
+              Number(existingPayment.montoBase),
+              existingPayment.id
+            )
+          }
+        } else {
+          // Just update status if not already paid
+          if (existingPayment.estado !== 'PAGADO') {
+            await db
+              .update(pagoFlow)
+              .set({
+                estado: nuevoEstado,
+                fechaPago: nuevoEstado === 'PAGADO' ? new Date() : null,
+                medioPago: mediaRaw
+                  ? getPaymentMethodName(mediaRaw)
+                  : existingPayment.medioPago
+              })
+              .where(eq(pagoFlow.flowOrder, status.commerceOrder))
+          }
+        }
+      }
 
       // Trigger revalidation for the payments list
       revalidatePath('/payments')
