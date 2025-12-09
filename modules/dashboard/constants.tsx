@@ -42,17 +42,17 @@ export const sidebarData: sidebarDataItems = {
       ]
     },
     {
-      title: 'Prestamos',
-      url: '/prestamos',
+      title: 'Préstamos',
+      url: '/loans',
       icon: Wallet2Icon,
       items: [
         {
           title: 'Listado de Préstamos',
-          url: '/prestamos'
+          url: '/loans'
         },
         {
-          title: 'Registrar Préstamo',
-          url: '/prestamos/registrar'
+          title: 'Nuevo Préstamo',
+          url: '/loans/new'
         }
       ]
     },
