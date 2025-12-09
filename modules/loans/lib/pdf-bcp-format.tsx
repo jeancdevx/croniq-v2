@@ -11,9 +11,9 @@ import {
 
 import type { PrestamoConCuotas } from '@/db/types'
 
-// Rutas absolutas de imágenes
-const LOGO_PATH = path.join(process.cwd(), 'assets', 'contapro-logo.png')
-const SIGNATURE_PATH = path.join(process.cwd(), 'assets', 'signature.png')
+// Rutas absolutas de imágenes (ahora en public/)
+const LOGO_PATH = path.join(process.cwd(), 'public', 'contapro-logo.png')
+const SIGNATURE_PATH = path.join(process.cwd(), 'public', 'signature.png')
 
 // Estilos profesionales estilo BCP
 const styles = StyleSheet.create({
