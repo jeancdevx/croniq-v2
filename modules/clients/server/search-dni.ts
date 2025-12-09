@@ -13,7 +13,7 @@ export async function searchDni(dni: string): Promise<DniSearchResponse> {
       }
     }
 
-    const apiUrl = process.env.FACTILIZA_API_URL
+    const apiUrl = process.env.FACTILIZA_DNI_API_URL
     const bearerToken = process.env.FACTILIZA_BEARER_TOKEN
 
     if (!apiUrl || !bearerToken) {
