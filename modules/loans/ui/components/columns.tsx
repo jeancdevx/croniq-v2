@@ -20,6 +20,7 @@ import {
 
 import { DataTableColumnHeader } from './data-table-column-header'
 import { DeleteDraftButton } from './delete-draft-button'
+import { SendScheduleButton } from './send-schedule-button'
 
 export const columns: ColumnDef<PrestamoConCuotas>[] = [
   {
@@ -139,6 +140,12 @@ export const columns: ColumnDef<PrestamoConCuotas>[] = [
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DeleteDraftButton loanId={loan.id} />
+              </>
+            )}
+            {loan.estado !== 'DRAFT' && (
+              <>
+                <SendScheduleButton loanId={loan.id} />
+                <DropdownMenuSeparator />
               </>
             )}
             <DropdownMenuItem
