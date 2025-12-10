@@ -19,7 +19,10 @@ export interface ResumenSesion {
   totalEgresos: number
   desglose: {
     ingresosEfectivo: number
-    ingresosFlow: number
+    ingresosTarjeta: number
+    inyeccionesEfectivo: number
+    efectivoDisponible: number
+    comisionesFlow: number
   }
 }
 

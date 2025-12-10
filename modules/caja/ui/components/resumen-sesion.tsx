@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { Clock, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
 
 import type { ResumenSesion, SesionCaja } from '../types'
 
@@ -60,14 +61,73 @@ export function ResumenSesion({ sesion, resumen }: ResumenSesionProps) {
           <CardTitle className='text-sm font-medium'>Ingresos</CardTitle>
           <TrendingUp className='h-4 w-4 text-green-600' />
         </CardHeader>
-        <CardContent>
-          <div className='text-2xl font-bold text-green-600'>
-            + S/ {resumen.totalIngresos.toFixed(2)}
+        <CardContent className='space-y-4'>
+          <div className='flex items-center justify-between'>
+            <div className='text-2xl font-bold text-green-600'>
+              + S/ {resumen.totalIngresos.toFixed(2)}
+            </div>
+            <p className='text-muted-foreground text-xs'>Total</p>
           </div>
-          <p className='text-muted-foreground text-xs'>
-            Efectivo: S/ {resumen.desglose.ingresosEfectivo.toFixed(2)} | Flow:
-            S/ {resumen.desglose.ingresosFlow.toFixed(2)}
-          </p>
+
+          <Separator />
+
+          {/* Desglose detallado */}
+          <div className='space-y-2'>
+            <h4 className='text-sm font-semibold'>Desglose de Ingresos</h4>
+
+            <div className='flex justify-between text-sm'>
+              <span className='text-muted-foreground'>Pagos en Efectivo:</span>
+              <span className='font-medium text-emerald-400'>
+                S/ {(resumen.desglose?.ingresosEfectivo || 0).toFixed(2)}
+              </span>
+            </div>
+
+            <div className='flex justify-between text-sm'>
+              <span className='text-muted-foreground'>
+                Pagos con Tarjeta/Flow:
+              </span>
+              <span className='font-medium text-blue-400'>
+                S/ {(resumen.desglose?.ingresosTarjeta || 0).toFixed(2)}
+              </span>
+            </div>
+
+            {resumen.desglose?.inyeccionesEfectivo > 0 && (
+              <div className='flex justify-between text-sm'>
+                <span className='text-muted-foreground'>
+                  Inyecciones de Efectivo:
+                </span>
+                <span className='font-medium text-purple-400'>
+                  S/ {resumen.desglose.inyeccionesEfectivo.toFixed(2)}
+                </span>
+              </div>
+            )}
+
+            {resumen.desglose?.comisionesFlow > 0 && (
+              <div className='flex justify-between text-sm'>
+                <span className='text-muted-foreground'>Comisiones Flow:</span>
+                <span className='font-medium text-orange-400'>
+                  S/ {resumen.desglose.comisionesFlow.toFixed(2)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Efectivo disponible - destacado */}
+          <div className='bg-primary/10 rounded-lg p-4'>
+            <div className='flex items-center justify-between'>
+              <div>
+                <p className='text-sm font-semibold'>Efectivo Disponible</p>
+                <p className='text-muted-foreground text-xs'>
+                  Dinero físico en caja para dar vueltos
+                </p>
+              </div>
+              <span className='text-primary text-2xl font-bold'>
+                S/ {(resumen.desglose?.efectivoDisponible || 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

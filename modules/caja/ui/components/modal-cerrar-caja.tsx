@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle, Loader2, Wallet } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -23,7 +24,11 @@ import type { ResumenSesion, SesionCaja } from '../types'
 interface ModalCerrarCajaProps {
   open: boolean
   onClose: () => void
-  onConfirm: (saldoReal: number, observaciones?: string) => Promise<void>
+  onConfirm: (
+    saldoReal: number,
+    observaciones?: string,
+    retirarEfectivo?: number
+  ) => Promise<void>
   sesion: SesionCaja | null
   resumen: ResumenSesion | null
 }
@@ -38,10 +43,14 @@ export function ModalCerrarCaja({
   const [saldoReal, setSaldoReal] = useState('')
   const [observaciones, setObservaciones] = useState('')
   const [loading, setLoading] = useState(false)
+  const [retirarEfectivo, setRetirarEfectivo] = useState(false)
+  const [montoRetiro, setMontoRetiro] = useState('')
 
   const saldoTeorico = resumen?.saldoTeorico || 0
+  const montoRetiroNum = retirarEfectivo ? parseFloat(montoRetiro) || 0 : 0
+  const saldoTeoricoFinal = saldoTeorico - montoRetiroNum
   const saldoRealNum = parseFloat(saldoReal) || 0
-  const diferencia = saldoRealNum - saldoTeorico
+  const diferencia = saldoRealNum - saldoTeoricoFinal
   const hayDiferencia = Math.abs(diferencia) > 0.01
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +66,11 @@ export function ModalCerrarCaja({
 
     setLoading(true)
     try {
-      await onConfirm(saldoRealNum, observaciones || undefined)
+      await onConfirm(
+        saldoRealNum,
+        observaciones || undefined,
+        montoRetiroNum > 0 ? montoRetiroNum : undefined
+      )
       setSaldoReal('')
       setObservaciones('')
     } finally {
@@ -141,6 +154,45 @@ export function ModalCerrarCaja({
                 </div>
               </div>
             )}
+
+            {/* Retiro de Efectivo */}
+            <div className='space-y-3 rounded-lg border border-dashed p-4'>
+              <div className='flex items-center space-x-2'>
+                <Checkbox
+                  id='retirar'
+                  checked={retirarEfectivo}
+                  onCheckedChange={checked => {
+                    setRetirarEfectivo(checked as boolean)
+                    if (!checked) setMontoRetiro('')
+                  }}
+                />
+                <Label
+                  htmlFor='retirar'
+                  className='flex items-center gap-2 text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70'
+                >
+                  <Wallet className='h-4 w-4' />
+                  Retirar efectivo al cerrar (vaciar caja)
+                </Label>
+              </div>
+
+              {retirarEfectivo && (
+                <div className='space-y-2'>
+                  <Label htmlFor='montoRetiro'>Monto a retirar</Label>
+                  <Input
+                    id='montoRetiro'
+                    type='number'
+                    step='0.01'
+                    placeholder='0.00'
+                    value={montoRetiro}
+                    onChange={e => setMontoRetiro(e.target.value)}
+                    className='font-bold'
+                  />
+                  <p className='text-muted-foreground text-xs'>
+                    La caja quedará con saldo S/ 0 para la próxima sesión
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* Observaciones */}
             {hayDiferencia && (

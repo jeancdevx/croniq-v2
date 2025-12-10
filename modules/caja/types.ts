@@ -1,9 +1,11 @@
 export type TipoMovimiento = 'INGRESO' | 'EGRESO'
 export type CategoriaMovimiento =
   | 'CAPITAL_INICIAL'
-  | 'PAGO_EFECTIVO'
-  | 'PAGO_FLOW'
-  | 'DESEMBOLSO'
+  | 'PAGO_EFECTIVO' // Pago en efectivo (va a caja física)
+  | 'PAGO_TARJETA' // Pago con tarjeta/Flow (NO va a caja física)
+  | 'INYECCION_EFECTIVO' // Agregar dinero a caja para cambio
+  | 'RETIRO_EFECTIVO' // Sacar dinero de caja al cerrar
+  | 'DESEMBOLSO' // Préstamo otorgado (sale de caja)
 
 export type EstadoSesion = 'ABIERTA' | 'CERRADA'
 
@@ -43,4 +45,11 @@ export interface ResumenSesion {
   totalEgresos: number
   saldoTeorico: number
   cantidadMovimientos: number
+  desglose: {
+    ingresosEfectivo: number
+    ingresosTarjeta: number
+    inyeccionesEfectivo: number
+    efectivoDisponible: number
+    comisionesFlow: number
+  }
 }

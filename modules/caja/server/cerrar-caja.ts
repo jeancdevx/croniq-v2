@@ -9,8 +9,13 @@ import { cajaSesion, movimientoCaja } from '@/db/schema'
  * Cierra la sesión de caja actualmente abierta
  * @param saldoReal - Saldo real contado/consultado en cuenta bancaria
  * @param observaciones - Observaciones del cierre (obligatorio si hay diferencia)
+ * @param retirarEfectivo - Monto a retirar de la caja (opcional, para vaciar caja)
  */
-export async function cerrarCaja(saldoReal: number, observaciones?: string) {
+export async function cerrarCaja(
+  saldoReal: number,
+  observaciones?: string,
+  retirarEfectivo?: number
+) {
   const db = getDb()
   if (!db) return { success: false, error: 'No database connection' }
 
@@ -40,10 +45,30 @@ export async function cerrarCaja(saldoReal: number, observaciones?: string) {
       .filter(m => m.tipo === 'EGRESO')
       .reduce((sum, m) => sum + Number(m.monto), 0)
 
-    const saldoTeorico = Number(sesionAbierta.saldoInicial) + ingresos - egresos
+    let saldoTeorico = Number(sesionAbierta.saldoInicial) + ingresos - egresos
+
+    // 3. Registrar retiro de efectivo si se especifica
+    if (retirarEfectivo && retirarEfectivo > 0) {
+      await db.insert(movimientoCaja).values({
+        cajaSesionId: sesionAbierta.id,
+        tipo: 'EGRESO',
+        categoria: 'RETIRO_EFECTIVO',
+        monto: retirarEfectivo.toString(),
+        descripcion: 'Retiro de efectivo al cierre de caja',
+        fechaMovimiento: new Date()
+      })
+
+      // Recalcular saldo teórico después del retiro
+      saldoTeorico -= retirarEfectivo
+
+      console.log(
+        `💰 Retiro de efectivo: S/ ${retirarEfectivo.toFixed(2)} - Nuevo saldo teórico: S/ ${saldoTeorico.toFixed(2)}`
+      )
+    }
+
     const diferencia = saldoReal - saldoTeorico
 
-    // 3. Validar observaciones si hay diferencia
+    // 4. Validar observaciones si hay diferencia
     if (Math.abs(diferencia) > 0.01 && !observaciones) {
       return {
         success: false,
@@ -52,7 +77,7 @@ export async function cerrarCaja(saldoReal: number, observaciones?: string) {
       }
     }
 
-    // 4. Cerrar sesión
+    // 5. Cerrar sesión
     const [sesionCerrada] = await db
       .update(cajaSesion)
       .set({
@@ -68,7 +93,7 @@ export async function cerrarCaja(saldoReal: number, observaciones?: string) {
       .returning()
 
     console.log(
-      `✅ Caja cerrada - Sesión #${sesionCerrada.numeroSesion} - Diferencia: S/ ${diferencia.toFixed(2)}`
+      `✅ Caja cerrada - Sesión #${sesionCerrada.numeroSesion} - Diferencia: S/ ${diferencia.toFixed(2)}${retirarEfectivo ? ` - Retiro: S/ ${retirarEfectivo.toFixed(2)}` : ''}`
     )
 
     return {
@@ -77,7 +102,8 @@ export async function cerrarCaja(saldoReal: number, observaciones?: string) {
       saldoTeorico,
       saldoReal,
       diferencia,
-      tieneDiferencia: Math.abs(diferencia) > 0.01
+      tieneDiferencia: Math.abs(diferencia) > 0.01,
+      retirarEfectivo: retirarEfectivo || 0
     }
   } catch (error) {
     console.error('Error cerrando caja:', error)
