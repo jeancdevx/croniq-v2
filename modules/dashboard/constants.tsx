@@ -86,11 +86,11 @@ export const sidebarData: sidebarDataItems = {
         },
         {
           title: 'Historial',
-          url: '#'
+          url: '/messages/history'
         },
         {
           title: 'Configuración',
-          url: '#'
+          url: '/messages/settings'
         }
       ]
     }

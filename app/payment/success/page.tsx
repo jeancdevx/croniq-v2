@@ -116,8 +116,7 @@ async function PaymentDetails({ token }: { token?: string }) {
 
       {isSuccess && (
         <div className='flex flex-col gap-3'>
-          <DownloadReceiptButton />
-          <DownloadScheduleButton loanId={payment.prestamoId} />
+          <DownloadReceiptButton paymentId={payment.id} />
         </div>
       )}
     </div>

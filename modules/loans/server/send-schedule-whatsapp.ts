@@ -73,9 +73,10 @@ export async function sendScheduleWhatsApp(
     const wazendClient = createWazendClient()
 
     // Formatear número con código de país (Perú +51)
-    const phoneNumber = loan.cliente.telefono.startsWith('51')
-      ? loan.cliente.telefono
-      : `51${loan.cliente.telefono}`
+    let phoneNumber = loan.cliente.telefono.replace(/\D/g, '')
+    if (phoneNumber.length === 9) {
+      phoneNumber = `51${phoneNumber}`
+    }
 
     await wazendClient.sendDocument({
       number: phoneNumber,

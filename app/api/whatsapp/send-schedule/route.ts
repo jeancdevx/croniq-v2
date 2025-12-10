@@ -41,12 +41,18 @@ export async function POST(request: NextRequest) {
     // Create WhatsApp client
     const wazendClient = createWazendClient()
 
+    // Format phone number
+    let formattedPhone = debtor.phone.replace(/\D/g, '') // Remove non-digits
+    if (formattedPhone.length === 9) {
+      formattedPhone = `51${formattedPhone}`
+    }
+
     // Prepare message caption
     const caption = `Hola ${debtor.customerName},\n\nAdjunto encontrarás el cronograma de pagos de tu préstamo.\n\n📅 Próximo pago: ${new Date(debtor.nextPaymentDate).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}\n💰 Monto: S/ ${debtor.nextPaymentAmount.toFixed(2)}\n\n¡Gracias por tu confianza!`
 
     // Send document via WhatsApp
     const result = await wazendClient.sendDocument({
-      number: debtor.phone,
+      number: formattedPhone,
       mediatype: 'document',
       mimetype: 'application/pdf',
       caption,

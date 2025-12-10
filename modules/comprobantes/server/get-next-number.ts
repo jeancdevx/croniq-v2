@@ -31,7 +31,38 @@ export async function getNextComprobanteNumber(
       .for('update')
 
     if (!numeracion) {
-      throw new Error(`Serie ${serie} no encontrada o inactiva`)
+      // Auto-initialize if not found (Self-healing for dev/prod)
+      console.log(`Serie ${serie} no encontrada. Inicializando...`)
+      const [newNumeracion] = await db
+        .insert(comprobanteNumeracion)
+        .values({
+          tipoComprobante,
+          serie,
+          ultimoNumero: 0,
+          activo: true,
+          updatedAt: new Date()
+        })
+        .returning()
+
+      // Use the newly created record
+      const nuevoNumero = newNumeracion.ultimoNumero + 1
+
+      await db
+        .update(comprobanteNumeracion)
+        .set({
+          ultimoNumero: nuevoNumero,
+          updatedAt: new Date()
+        })
+        .where(eq(comprobanteNumeracion.id, newNumeracion.id))
+
+      const numeroFormateado = String(nuevoNumero).padStart(8, '0')
+      const numeroCompleto = `${serie}-${numeroFormateado}`
+
+      return {
+        serie,
+        numero: numeroFormateado,
+        numeroCompleto
+      }
     }
 
     // 2. Incrementar número

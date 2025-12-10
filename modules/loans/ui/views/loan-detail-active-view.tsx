@@ -45,6 +45,10 @@ export function LoanDetailActiveView({ loan }: LoanDetailActiveViewProps) {
     0
   )
   const totalAmount = Number(loan.totalAPagar)
+  const totalInteres = loan.cuotas.reduce(
+    (acc, c) => acc + Number(c.interes || 0),
+    0
+  )
   const progress =
     totalAmount > 0 ? Math.min((totalPaid / totalAmount) * 100, 100) : 0
 
@@ -77,7 +81,7 @@ export function LoanDetailActiveView({ loan }: LoanDetailActiveViewProps) {
         </div>
       </div>
 
-      <div className='grid gap-6 md:grid-cols-3'>
+      <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-4'>
         <Card>
           <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
             <CardTitle className='text-sm font-medium'>Cliente</CardTitle>
@@ -132,6 +136,37 @@ export function LoanDetailActiveView({ loan }: LoanDetailActiveViewProps) {
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>Tasas</CardTitle>
+            <DollarSign className='text-muted-foreground h-4 w-4' />
+          </CardHeader>
+          <CardContent>
+            <div className='space-y-1'>
+              <div className='flex justify-between text-sm'>
+                <span className='text-muted-foreground'>TEA:</span>
+                <span className='font-medium'>{loan.tea}%</span>
+              </div>
+              <div className='flex justify-between text-sm'>
+                <span className='text-muted-foreground'>TCEA:</span>
+                <span className='font-medium'>{loan.tcea}%</span>
+              </div>
+              <div className='flex justify-between text-sm'>
+                <span className='text-muted-foreground'>Seguro:</span>
+                <span className='font-medium'>
+                  {loan.tasaSeguroDesgravamen}%
+                </span>
+              </div>
+              <div className='mt-1 flex justify-between border-t pt-1 text-sm'>
+                <span className='text-muted-foreground'>Total Interés:</span>
+                <span className='font-medium'>
+                  {formatCurrency(totalInteres)}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -143,9 +178,12 @@ export function LoanDetailActiveView({ loan }: LoanDetailActiveViewProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className='w-[80px]'>#</TableHead>
+                <TableHead className='w-[60px]'>#</TableHead>
                 <TableHead>Vencimiento</TableHead>
-                <TableHead>Monto Cuota</TableHead>
+                <TableHead>Capital</TableHead>
+                <TableHead>Interés</TableHead>
+                <TableHead>Seguro</TableHead>
+                <TableHead>Total Cuota</TableHead>
                 <TableHead>Pagado</TableHead>
                 <TableHead>Pendiente</TableHead>
                 <TableHead>Estado</TableHead>
@@ -162,7 +200,14 @@ export function LoanDetailActiveView({ loan }: LoanDetailActiveViewProps) {
                       locale: es
                     })}
                   </TableCell>
-                  <TableCell>{formatCurrency(cuota.totalConSeguro)}</TableCell>
+                  <TableCell>{formatCurrency(cuota.capital)}</TableCell>
+                  <TableCell>{formatCurrency(cuota.interes)}</TableCell>
+                  <TableCell>
+                    {formatCurrency(cuota.seguroDesgravamen)}
+                  </TableCell>
+                  <TableCell className='font-bold'>
+                    {formatCurrency(cuota.totalConSeguro)}
+                  </TableCell>
                   <TableCell>
                     {formatCurrency(cuota.montoPagado || 0)}
                   </TableCell>

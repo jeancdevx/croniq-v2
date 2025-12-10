@@ -15,6 +15,8 @@ import {
   prestamo
 } from '@/db/schema'
 
+import { generateComprobante } from '@/modules/comprobantes/server/generate-comprobante'
+import { sendComprobanteWhatsApp } from '@/modules/comprobantes/server/send-comprobante-whatsapp'
 import { sendWhatsappMessage } from '@/modules/notifications/server/whatsapp'
 
 import { getFlowConfig } from './flow-config'
@@ -28,7 +30,9 @@ export async function getLoansByClientId(clientId: string) {
     const loans = await db
       .select()
       .from(prestamo)
-      .where(eq(prestamo.clienteId, clientId))
+      .where(
+        and(eq(prestamo.clienteId, clientId), eq(prestamo.estado, 'ACTIVO'))
+      )
       .orderBy(desc(prestamo.createdAt))
 
     return loans
@@ -319,8 +323,18 @@ export async function generatePaymentLink(data: {
       process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
 
     // Return URL should match the user's current session origin to avoid cookie issues
-    const returnBaseUrl = `${protocol}://${host}`
-    const returnUrl = `${returnBaseUrl}/payment/success`
+    let returnBaseUrl = `${protocol}://${host}`
+
+    // If REDIRECT_PAYMENT is production, force use of NEXT_PUBLIC_APP_URL
+    if (
+      process.env.REDIRECT_PAYMENT === 'production' &&
+      process.env.NEXT_PUBLIC_APP_URL
+    ) {
+      returnBaseUrl = process.env.NEXT_PUBLIC_APP_URL.trim()
+    }
+
+    // Use API route for return to handle POST -> GET redirect properly
+    const returnUrl = `${returnBaseUrl}/api/payments/return`
 
     // Generar ID único para la orden
     const commerceOrder = `ORD-${Date.now()}`
@@ -454,7 +468,8 @@ export async function processLoanPayment(
       const pending = Number(inst.saldoPendiente ?? inst.totalConSeguro)
       let paymentForThis = 0
 
-      if (remainingAmount >= pending) {
+      // Use a small epsilon for floating point comparison
+      if (remainingAmount >= pending - 0.01) {
         paymentForThis = pending
         // Full payment of this installment
         await db
@@ -470,16 +485,33 @@ export async function processLoanPayment(
       } else {
         paymentForThis = remainingAmount
         // Partial payment
-        await db
-          .update(cuota)
-          .set({
-            saldoPendiente: (pending - remainingAmount).toString(),
-            montoPagado: (
-              Number(inst.montoPagado || 0) + remainingAmount
-            ).toString(),
-            estado: 'PENDIENTE' // Remains pending
-          })
-          .where(eq(cuota.id, inst.id))
+        const newSaldo = pending - remainingAmount
+
+        // Check if new balance is effectively zero
+        if (newSaldo <= 0.01) {
+          await db
+            .update(cuota)
+            .set({
+              estado: 'PAGADO',
+              saldoPendiente: '0.00',
+              montoPagado: (
+                Number(inst.montoPagado || 0) + remainingAmount
+              ).toString(),
+              fechaPago: new Date()
+            })
+            .where(eq(cuota.id, inst.id))
+        } else {
+          await db
+            .update(cuota)
+            .set({
+              saldoPendiente: newSaldo.toString(),
+              montoPagado: (
+                Number(inst.montoPagado || 0) + remainingAmount
+              ).toString(),
+              estado: 'PENDIENTE'
+            })
+            .where(eq(cuota.id, inst.id))
+        }
         remainingAmount = 0
       }
 
@@ -509,6 +541,32 @@ export async function processLoanPayment(
         .update(prestamo)
         .set({ estado: 'PAGADO' })
         .where(eq(prestamo.id, prestamoId))
+    }
+
+    // Generate Comprobante and Send via WhatsApp
+    try {
+      // 1. Generate Comprobante
+      const result = await generateComprobante(pagoFlowId)
+
+      if (result.success && result.comprobante) {
+        // 2. Get Client Phone
+        const clientData = await db
+          .select({ phone: cliente.telefono })
+          .from(prestamo)
+          .where(eq(prestamo.id, prestamoId))
+          .innerJoin(cliente, eq(prestamo.clienteId, cliente.id))
+          .limit(1)
+
+        if (clientData.length > 0 && clientData[0].phone) {
+          // 3. Send WhatsApp
+          await sendComprobanteWhatsApp(
+            result.comprobante.id,
+            clientData[0].phone
+          )
+        }
+      }
+    } catch (error) {
+      console.error('Error sending automatic receipt:', error)
     }
   } catch (error) {
     console.error('Error processing loan payment:', error)
@@ -542,7 +600,8 @@ export async function registerCashPayment(data: {
       const pending = Number(inst.saldoPendiente ?? inst.totalConSeguro)
       let paymentForThis = 0
 
-      if (remainingAmount >= pending) {
+      // Use epsilon for float comparison
+      if (remainingAmount >= pending - 0.01) {
         paymentForThis = pending
         // Full payment
         await db
@@ -558,16 +617,32 @@ export async function registerCashPayment(data: {
       } else {
         paymentForThis = remainingAmount
         // Partial payment
-        await db
-          .update(cuota)
-          .set({
-            saldoPendiente: (pending - remainingAmount).toString(),
-            montoPagado: (
-              Number(inst.montoPagado || 0) + remainingAmount
-            ).toString(),
-            estado: 'PENDIENTE'
-          })
-          .where(eq(cuota.id, inst.id))
+        const newSaldo = pending - remainingAmount
+
+        if (newSaldo <= 0.01) {
+          await db
+            .update(cuota)
+            .set({
+              estado: 'PAGADO',
+              saldoPendiente: '0.00',
+              montoPagado: (
+                Number(inst.montoPagado || 0) + remainingAmount
+              ).toString(),
+              fechaPago: new Date()
+            })
+            .where(eq(cuota.id, inst.id))
+        } else {
+          await db
+            .update(cuota)
+            .set({
+              saldoPendiente: newSaldo.toString(),
+              montoPagado: (
+                Number(inst.montoPagado || 0) + remainingAmount
+              ).toString(),
+              estado: 'PENDIENTE'
+            })
+            .where(eq(cuota.id, inst.id))
+        }
         remainingAmount = 0
       }
 
@@ -620,6 +695,21 @@ export async function syncLoanStatuses() {
       .where(not(eq(prestamo.estado, 'PAGADO')))
 
     let updatedCount = 0
+
+    // NEW: Fix pending installments that are actually paid (0 balance)
+    const stuckInstallments = await db
+      .select()
+      .from(cuota)
+      .where(
+        and(eq(cuota.estado, 'PENDIENTE'), eq(cuota.saldoPendiente, '0.00'))
+      )
+
+    for (const inst of stuckInstallments) {
+      await db
+        .update(cuota)
+        .set({ estado: 'PAGADO' })
+        .where(eq(cuota.id, inst.id))
+    }
 
     for (const loan of activeLoans) {
       // 2. Check pending installments
