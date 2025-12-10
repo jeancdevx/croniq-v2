@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react'
 
-import { Loader2, Lock, Unlock } from 'lucide-react'
+import { Loader2, Lock, Unlock, Wallet } from 'lucide-react'
 
 import { toast } from 'sonner'
 
 import { abrirCaja, cerrarCaja, getSesionActual } from '@/modules/caja/server'
 import { ModalAbrirCaja } from '@/modules/caja/ui/components/modal-abrir-caja'
 import { ModalCerrarCaja } from '@/modules/caja/ui/components/modal-cerrar-caja'
+import { ModalInyectarEfectivo } from '@/modules/caja/ui/components/modal-inyectar-efectivo'
 import { ResumenSesion } from '@/modules/caja/ui/components/resumen-sesion'
 import { TablaMovimientos } from '@/modules/caja/ui/components/tabla-movimientos'
 import type {
@@ -40,6 +41,7 @@ export default function CajaPage() {
   const [sesionData, setSesionData] = useState<SesionData | null>(null)
   const [showAbrirModal, setShowAbrirModal] = useState(false)
   const [showCerrarModal, setShowCerrarModal] = useState(false)
+  const [showInyeccionModal, setShowInyeccionModal] = useState(false)
   const [saldoInicialSugerido, setSaldoInicialSugerido] = useState(0)
 
   const cargarSesion = async () => {
@@ -100,10 +102,11 @@ export default function CajaPage() {
 
   const handleCerrarCaja = async (
     saldoReal: number,
-    observaciones?: string
+    observaciones?: string,
+    retirarEfectivo?: number
   ) => {
     try {
-      const result = await cerrarCaja(saldoReal, observaciones)
+      const result = await cerrarCaja(saldoReal, observaciones, retirarEfectivo)
       if (result.success) {
         toast.success('Caja cerrada exitosamente')
         setShowCerrarModal(false)
@@ -140,20 +143,31 @@ export default function CajaPage() {
             Gestiona las sesiones de caja y movimientos
           </p>
         </div>
-        {sesionAbierta ? (
-          <Button
-            onClick={() => setShowCerrarModal(true)}
-            variant='destructive'
-          >
-            <Lock className='mr-2 h-4 w-4' />
-            Cerrar Caja
-          </Button>
-        ) : (
-          <Button onClick={() => setShowAbrirModal(true)}>
-            <Unlock className='mr-2 h-4 w-4' />
-            Abrir Caja
-          </Button>
-        )}
+        <div className='flex gap-2'>
+          {sesionAbierta && (
+            <Button
+              onClick={() => setShowInyeccionModal(true)}
+              variant='outline'
+            >
+              <Wallet className='mr-2 h-4 w-4' />
+              Inyectar Efectivo
+            </Button>
+          )}
+          {sesionAbierta ? (
+            <Button
+              onClick={() => setShowCerrarModal(true)}
+              variant='destructive'
+            >
+              <Lock className='mr-2 h-4 w-4' />
+              Cerrar Caja
+            </Button>
+          ) : (
+            <Button onClick={() => setShowAbrirModal(true)}>
+              <Unlock className='mr-2 h-4 w-4' />
+              Abrir Caja
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Estado de Caja */}
@@ -200,6 +214,15 @@ export default function CajaPage() {
         onConfirm={handleCerrarCaja}
         sesion={sesion ?? null}
         resumen={resumen ?? null}
+      />
+      <ModalInyectarEfectivo
+        open={showInyeccionModal}
+        onClose={() => setShowInyeccionModal(false)}
+        onSuccess={async () => {
+          toast.success('Efectivo inyectado correctamente')
+          await cargarSesion()
+        }}
+        efectivoActual={resumen?.desglose?.efectivoDisponible || 0}
       />
     </div>
   )
