@@ -203,7 +203,7 @@ export async function sendPaymentReceipt(
         // No existe, generar nuevo comprobante
         const { generateComprobante } =
           await import('@/modules/comprobantes/server')
-        const result = await generateComprobante(paymentId)
+        const result = await generateComprobante({ pagoFlowId: paymentId })
 
         if (!result.success || !result.comprobante) {
           return {
@@ -253,18 +253,37 @@ export async function sendPaymentReceipt(
 
       return sendResult
     } else {
-      // Para pagos en EFECTIVO, mantener mensaje de texto simple
-      let phone = ''
-      let message = ''
+      // Para pagos en EFECTIVO, generar y enviar comprobante PDF
+      // 1. Buscar si ya existe un comprobante para este pago
+      const [existingComprobante] = await db
+        .select()
+        .from(comprobante)
+        .where(eq(comprobante.pagoId, paymentId))
+        .limit(1)
 
+      let comprobanteId: string
+
+      if (existingComprobante) {
+        comprobanteId = existingComprobante.id
+      } else {
+        // Generar nuevo comprobante
+        const { generateComprobante } =
+          await import('@/modules/comprobantes/server')
+        const result = await generateComprobante({ pagoId: paymentId })
+
+        if (!result.success || !result.comprobante) {
+          return {
+            success: false,
+            error: result.error || 'Error al generar comprobante'
+          }
+        }
+
+        comprobanteId = result.comprobante.id
+      }
+
+      // 2. Obtener teléfono del cliente
       const paymentData = await db
-        .select({
-          monto: pago.montoTotalRecibido,
-          fecha: pago.fechaPago,
-          recibo: pago.numeroRecibo,
-          clienteNombre: cliente.nombres,
-          clientePhone: cliente.telefono
-        })
+        .select({ telefono: cliente.telefono })
         .from(pago)
         .where(eq(pago.id, paymentId))
         .innerJoin(cuota, eq(pago.cuotaId, cuota.id))
@@ -273,22 +292,16 @@ export async function sendPaymentReceipt(
         .limit(1)
 
       if (paymentData.length === 0) {
-        return { success: false, error: 'Pago no encontrado' }
+        return { success: false, error: 'Cliente no encontrado' }
       }
 
-      const p = paymentData[0]
-      phone = p.clientePhone
-      message = `Hola ${p.clienteNombre}, confirmamos tu pago en efectivo.\n\nRecibo: ${p.recibo}\nMonto: S/ ${p.monto}\nFecha: ${p.fecha.toLocaleDateString()}`
-
-      if (phone && message) {
-        await sendWhatsappMessage(phone, message)
-        return { success: true }
-      } else {
-        return {
-          success: false,
-          error: 'No se pudo obtener el teléfono del cliente'
-        }
-      }
+      // 3. Enviar comprobante por WhatsApp
+      const { sendComprobanteWhatsApp } =
+        await import('@/modules/comprobantes/server')
+      return await sendComprobanteWhatsApp(
+        comprobanteId,
+        paymentData[0].telefono
+      )
     }
   } catch (error) {
     console.error('Error sending receipt:', error)
@@ -650,7 +663,7 @@ export async function processLoanPayment(
     // Generate Comprobante and Send via WhatsApp
     try {
       // 1. Generate Comprobante
-      const result = await generateComprobante(pagoFlowId)
+      const result = await generateComprobante({ pagoFlowId })
 
       if (result.success && result.comprobante) {
         // 2. Get Client Phone
@@ -821,6 +834,61 @@ export async function registerCashPayment(data: {
     } catch (cajaError) {
       console.warn('⚠️ No se pudo registrar movimiento de caja:', cajaError)
       // No fallar el pago si falla el registro de caja
+    }
+
+    // Generar y enviar comprobante automáticamente
+    try {
+      const { generateComprobante, sendComprobanteWhatsApp } =
+        await import('@/modules/comprobantes/server')
+
+      // Obtener el último pago registrado con este recibo
+      const [lastPayment] = await db
+        .select()
+        .from(pago)
+        .where(eq(pago.numeroRecibo, receiptNumber))
+        .orderBy(pago.fechaPago)
+        .limit(1)
+
+      if (lastPayment) {
+        // Generar comprobante
+        const comprobanteResult = await generateComprobante({
+          pagoId: lastPayment.id
+        })
+
+        if (comprobanteResult.success && comprobanteResult.comprobante) {
+          // Obtener teléfono del cliente
+          const [loanData] = await db
+            .select({ clienteId: prestamo.clienteId })
+            .from(prestamo)
+            .where(eq(prestamo.id, data.loanId))
+            .limit(1)
+
+          if (loanData) {
+            const [clientData] = await db
+              .select({ telefono: cliente.telefono })
+              .from(cliente)
+              .where(eq(cliente.id, loanData.clienteId))
+              .limit(1)
+
+            if (clientData?.telefono) {
+              // Enviar comprobante por WhatsApp
+              await sendComprobanteWhatsApp(
+                comprobanteResult.comprobante.id,
+                clientData.telefono
+              )
+              console.log(
+                `✅ Comprobante enviado automáticamente: ${comprobanteResult.comprobante.numeroCompleto}`
+              )
+            }
+          }
+        }
+      }
+    } catch (comprobanteError) {
+      console.warn(
+        '⚠️ No se pudo enviar comprobante automáticamente:',
+        comprobanteError
+      )
+      // No fallar el pago si falla el envío del comprobante
     }
 
     revalidatePath('/payments')

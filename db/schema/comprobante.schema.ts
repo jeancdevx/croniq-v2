@@ -8,19 +8,23 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { pagoFlow } from './pago-flow.schema'
+import { pago } from './pago.schema'
 
 /**
  * Tabla: comprobante
  * Registro de comprobantes de pago emitidos (Boletas/Facturas)
- * Relación 1:1 con pago_flow
+ * Relación 1:1 con pago_flow (pagos Flow) o pago (pagos efectivo)
  */
 export const comprobante = pgTable('comprobante', {
   id: uuid('id').defaultRandom().primaryKey(),
 
-  // Relación con pago_flow (no con pago individual)
-  pagoFlowId: uuid('pago_flow_id')
-    .notNull()
-    .references(() => pagoFlow.id, { onDelete: 'restrict' }),
+  // Relación con pago_flow (pagos con Flow/tarjeta)
+  pagoFlowId: uuid('pago_flow_id').references(() => pagoFlow.id, {
+    onDelete: 'restrict'
+  }),
+
+  // Relación con pago (pagos en efectivo)
+  pagoId: uuid('pago_id').references(() => pago.id, { onDelete: 'restrict' }),
 
   // Identificación del comprobante
   tipoComprobante: varchar('tipo_comprobante', { length: 20 }).notNull(), // "BOLETA", "FACTURA"

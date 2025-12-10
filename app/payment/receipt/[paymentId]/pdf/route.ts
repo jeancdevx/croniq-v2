@@ -34,7 +34,7 @@ export async function GET(
 
     // 2. Si no existe, generarlo
     if (!comprobanteData) {
-      const result = await generateComprobante(paymentId)
+      const result = await generateComprobante({ pagoFlowId: paymentId })
       if (!result.success || !result.comprobante) {
         return new NextResponse(result.error || 'Error generando comprobante', {
           status: 500

@@ -4,15 +4,17 @@ import { renderToBuffer } from '@react-pdf/renderer'
 import { eq } from 'drizzle-orm'
 
 import { getDb } from '@/db'
-import { comprobante, comprobanteDetalle } from '@/db/schema'
+import { cliente, comprobante, comprobanteDetalle } from '@/db/schema'
 import { createWazendClient } from '@/lib/wazend-client'
 
 import { generateQRImage } from '../lib/generate-qr-image'
 import { BoletaPDF } from '../lib/pdf-boleta'
+import { getPagoCashDetails } from './get-pago-cash-details'
 import { getPagoFlowDetails } from './get-pago-flow-details'
 
 /**
  * Envía el comprobante de pago por WhatsApp
+ * Soporta tanto pagos Flow como pagos en efectivo
  * @param comprobanteId - ID del comprobante generado
  * @param phone - Número de teléfono del cliente
  */
@@ -34,8 +36,20 @@ export async function sendComprobanteWhatsApp(
       throw new Error('Comprobante no encontrado')
     }
 
-    // 2. Obtener datos completos del pago Flow
-    const details = await getPagoFlowDetails(comprobanteData.pagoFlowId)
+    // 2. Determinar tipo de pago y obtener datos completos
+    let clienteData: typeof cliente.$inferSelect
+
+    if (comprobanteData.pagoFlowId) {
+      // Es un pago Flow
+      const details = await getPagoFlowDetails(comprobanteData.pagoFlowId)
+      clienteData = details.cliente
+    } else if (comprobanteData.pagoId) {
+      // Es un pago en efectivo
+      const details = await getPagoCashDetails(comprobanteData.pagoId)
+      clienteData = details.cliente
+    } else {
+      throw new Error('Comprobante no tiene pago asociado')
+    }
 
     // 3. Obtener detalles del comprobante
     const detalles = await db
@@ -52,7 +66,7 @@ export async function sendComprobanteWhatsApp(
       BoletaPDF({
         comprobante: comprobanteData,
         detalles,
-        cliente: details.cliente,
+        cliente: clienteData,
         qrImage
       })
     )
@@ -86,7 +100,7 @@ export async function sendComprobanteWhatsApp(
     })
 
     console.log(
-      `Comprobante ${comprobanteData.numeroCompleto} enviado a ${phone}`
+      `✅ Comprobante ${comprobanteData.numeroCompleto} enviado a ${phone}`
     )
 
     return { success: true }
