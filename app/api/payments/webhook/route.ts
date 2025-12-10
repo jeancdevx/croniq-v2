@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
             await crearMovimientoCaja({
               tipo: 'INGRESO',
-              categoria: 'PAGO_TARJETA',
+              categoria: 'PAGO_FLOW',
               monto: montoNeto,
               montoBruto,
               comisionFlow: comisionTotal,
