@@ -64,6 +64,42 @@ export async function POST(req: NextRequest) {
               existingPayment.id
             )
           }
+
+          // Crear movimiento de caja con comisión Flow
+          try {
+            const { calcularComisionFlow, determinarMedioPagoFlow } =
+              await import('@/modules/caja/lib/calcular-comision-flow')
+            const { crearMovimientoCaja } =
+              await import('@/modules/caja/server')
+
+            const medioPago = determinarMedioPagoFlow(mediaRaw || 'TARJETA')
+            const montoBruto = Number(existingPayment.monto)
+            const { montoNeto, comisionTotal } = calcularComisionFlow(
+              montoBruto,
+              medioPago
+            )
+
+            await crearMovimientoCaja({
+              tipo: 'INGRESO',
+              categoria: 'PAGO_FLOW',
+              monto: montoNeto,
+              montoBruto,
+              comisionFlow: comisionTotal,
+              medioPagoFlow: medioPago,
+              pagoFlowId: existingPayment.id,
+              descripcion: `Pago Flow - ${status.commerceOrder}`
+            })
+
+            console.log(
+              `✅ Movimiento caja: S/ ${montoNeto} (Bruto: S/ ${montoBruto}, Comisión: S/ ${comisionTotal})`
+            )
+          } catch (cajaError) {
+            console.warn(
+              '⚠️ No se pudo registrar movimiento de caja:',
+              cajaError
+            )
+            // No fallar el webhook si falla el registro de caja
+          }
         } else {
           // Just update status if not already paid
           if (existingPayment.estado !== 'PAGADO') {
