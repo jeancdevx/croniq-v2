@@ -47,6 +47,15 @@ export async function getInstallmentsByLoanId(loanId: string) {
   if (!db) return []
 
   try {
+    // Evaluate late fees first to ensure moras are up-to-date
+    try {
+      const { evaluateLateFees } =
+        await import('@/modules/loans/server/evaluate-late-fees')
+      await evaluateLateFees(loanId)
+    } catch (e) {
+      console.warn('Could not evaluate late fees:', e)
+    }
+
     const installments = await db
       .select()
       .from(cuota)
@@ -531,7 +540,16 @@ export async function processLoanPayment(
   if (!db) return
 
   try {
-    // 1. Get installments
+    // 0. Evaluate late fees first to ensure moras are up-to-date
+    try {
+      const { evaluateLateFees } =
+        await import('@/modules/loans/server/evaluate-late-fees')
+      await evaluateLateFees(prestamoId)
+    } catch (e) {
+      console.warn('Could not evaluate late fees:', e)
+    }
+
+    // 1. Get installments (ordered by cuota number = oldest first)
     const installments = await db
       .select()
       .from(cuota)
@@ -544,64 +562,71 @@ export async function processLoanPayment(
       if (remainingAmount <= 0.01) break // Threshold for float precision
       if (inst.estado === 'PAGADO') continue
 
-      const pending = Number(inst.saldoPendiente ?? inst.totalConSeguro)
-      let paymentForThis = 0
+      // Academic model: Pay MORA first, then CAPITAL
+      const currentMora = Number(inst.montoMora || 0)
+      const currentSaldo = Number(inst.saldoPendiente ?? inst.totalConSeguro)
+      let moraPaidThisCuota = 0
+      let capitalPaidThisCuota = 0
 
-      // Use a small epsilon for floating point comparison
-      if (remainingAmount >= pending - 0.01) {
-        paymentForThis = pending
-        // Full payment of this installment
-        await db
-          .update(cuota)
-          .set({
-            estado: 'PAGADO',
-            saldoPendiente: '0.00',
-            montoPagado: (Number(inst.montoPagado || 0) + pending).toString(),
-            fechaPago: new Date()
-          })
-          .where(eq(cuota.id, inst.id))
-        remainingAmount -= pending
-      } else {
-        paymentForThis = remainingAmount
-        // Partial payment
-        const newSaldo = pending - remainingAmount
-
-        // Check if new balance is effectively zero
-        if (newSaldo <= 0.01) {
-          await db
-            .update(cuota)
-            .set({
-              estado: 'PAGADO',
-              saldoPendiente: '0.00',
-              montoPagado: (
-                Number(inst.montoPagado || 0) + remainingAmount
-              ).toString(),
-              fechaPago: new Date()
-            })
-            .where(eq(cuota.id, inst.id))
+      // Step A: Pay mora first
+      if (currentMora > 0 && remainingAmount > 0.01) {
+        if (remainingAmount >= currentMora - 0.01) {
+          moraPaidThisCuota = currentMora
+          remainingAmount -= currentMora
         } else {
-          await db
-            .update(cuota)
-            .set({
-              saldoPendiente: newSaldo.toString(),
-              montoPagado: (
-                Number(inst.montoPagado || 0) + remainingAmount
-              ).toString(),
-              estado: 'PENDIENTE'
-            })
-            .where(eq(cuota.id, inst.id))
+          moraPaidThisCuota = remainingAmount
+          remainingAmount = 0
         }
-        remainingAmount = 0
       }
+
+      // Step B: Pay capital (saldo pendiente)
+      if (currentSaldo > 0 && remainingAmount > 0.01) {
+        if (remainingAmount >= currentSaldo - 0.01) {
+          capitalPaidThisCuota = currentSaldo
+          remainingAmount -= currentSaldo
+        } else {
+          capitalPaidThisCuota = remainingAmount
+          remainingAmount = 0
+        }
+      }
+
+      const totalPaidThisCuota = moraPaidThisCuota + capitalPaidThisCuota
+      if (totalPaidThisCuota <= 0) continue
+
+      // Calculate new values
+      const newMora = Math.max(0, currentMora - moraPaidThisCuota)
+      const newSaldo = Math.max(0, currentSaldo - capitalPaidThisCuota)
+      const newMontoPagado =
+        Number(inst.montoPagado || 0) + capitalPaidThisCuota
+
+      // Determine new estado
+      let newEstado: 'PAGADO' | 'PENDIENTE' | 'VENCIDO' = inst.estado as
+        | 'PAGADO'
+        | 'PENDIENTE'
+        | 'VENCIDO'
+      if (newSaldo <= 0.01 && newMora <= 0.01) {
+        newEstado = 'PAGADO'
+      }
+
+      await db
+        .update(cuota)
+        .set({
+          estado: newEstado,
+          saldoPendiente: newSaldo.toFixed(2),
+          montoPagado: newMontoPagado.toFixed(2),
+          montoMora: newMora.toFixed(2),
+          fechaPago: newEstado === 'PAGADO' ? new Date() : inst.fechaPago
+        })
+        .where(eq(cuota.id, inst.id))
 
       // Create Payment Record
       await db.insert(pago).values({
         cuotaId: inst.id,
         pagoFlowId: pagoFlowId,
         fechaPago: new Date(),
-        montoTotalRecibido: paymentForThis.toString(),
-        interesCobrado: '0.00', // Simplified
-        capitalCobrado: paymentForThis.toString(), // Simplified
+        montoTotalRecibido: totalPaidThisCuota.toFixed(2),
+        interesCobrado: moraPaidThisCuota.toFixed(2), // Using interesCobrado for mora
+        capitalCobrado: capitalPaidThisCuota.toFixed(2),
         medioPago: 'FLOW',
         numeroRecibo: `FLOW-${pagoFlowId.slice(0, 8)}`
       })
@@ -673,7 +698,16 @@ export async function registerCashPayment(data: {
       }
     }
 
-    // 1. Get installments
+    // 0. Evaluate late fees first to ensure moras are up-to-date
+    try {
+      const { evaluateLateFees } =
+        await import('@/modules/loans/server/evaluate-late-fees')
+      await evaluateLateFees(data.loanId)
+    } catch (e) {
+      console.warn('Could not evaluate late fees:', e)
+    }
+
+    // 1. Get installments (ordered by cuota number = oldest first)
     const installments = await db
       .select()
       .from(cuota)
@@ -688,62 +722,70 @@ export async function registerCashPayment(data: {
       if (remainingAmount <= 0.01) break
       if (inst.estado === 'PAGADO') continue
 
-      const pending = Number(inst.saldoPendiente ?? inst.totalConSeguro)
-      let paymentForThis = 0
+      // Academic model: Pay MORA first, then CAPITAL
+      const currentMora = Number(inst.montoMora || 0)
+      const currentSaldo = Number(inst.saldoPendiente ?? inst.totalConSeguro)
+      let moraPaidThisCuota = 0
+      let capitalPaidThisCuota = 0
 
-      // Use epsilon for float comparison
-      if (remainingAmount >= pending - 0.01) {
-        paymentForThis = pending
-        // Full payment
-        await db
-          .update(cuota)
-          .set({
-            estado: 'PAGADO',
-            saldoPendiente: '0.00',
-            montoPagado: (Number(inst.montoPagado || 0) + pending).toString(),
-            fechaPago: new Date()
-          })
-          .where(eq(cuota.id, inst.id))
-        remainingAmount -= pending
-      } else {
-        paymentForThis = remainingAmount
-        // Partial payment
-        const newSaldo = pending - remainingAmount
-
-        if (newSaldo <= 0.01) {
-          await db
-            .update(cuota)
-            .set({
-              estado: 'PAGADO',
-              saldoPendiente: '0.00',
-              montoPagado: (
-                Number(inst.montoPagado || 0) + remainingAmount
-              ).toString(),
-              fechaPago: new Date()
-            })
-            .where(eq(cuota.id, inst.id))
+      // Step A: Pay mora first
+      if (currentMora > 0 && remainingAmount > 0.01) {
+        if (remainingAmount >= currentMora - 0.01) {
+          moraPaidThisCuota = currentMora
+          remainingAmount -= currentMora
         } else {
-          await db
-            .update(cuota)
-            .set({
-              saldoPendiente: newSaldo.toString(),
-              montoPagado: (
-                Number(inst.montoPagado || 0) + remainingAmount
-              ).toString(),
-              estado: 'PENDIENTE'
-            })
-            .where(eq(cuota.id, inst.id))
+          moraPaidThisCuota = remainingAmount
+          remainingAmount = 0
         }
-        remainingAmount = 0
       }
+
+      // Step B: Pay capital (saldo pendiente)
+      if (currentSaldo > 0 && remainingAmount > 0.01) {
+        if (remainingAmount >= currentSaldo - 0.01) {
+          capitalPaidThisCuota = currentSaldo
+          remainingAmount -= currentSaldo
+        } else {
+          capitalPaidThisCuota = remainingAmount
+          remainingAmount = 0
+        }
+      }
+
+      const totalPaidThisCuota = moraPaidThisCuota + capitalPaidThisCuota
+      if (totalPaidThisCuota <= 0) continue
+
+      // Calculate new values
+      const newMora = Math.max(0, currentMora - moraPaidThisCuota)
+      const newSaldo = Math.max(0, currentSaldo - capitalPaidThisCuota)
+      const newMontoPagado =
+        Number(inst.montoPagado || 0) + capitalPaidThisCuota
+
+      // Determine new estado
+      let newEstado: 'PAGADO' | 'PENDIENTE' | 'VENCIDO' = inst.estado as
+        | 'PAGADO'
+        | 'PENDIENTE'
+        | 'VENCIDO'
+      if (newSaldo <= 0.01 && newMora <= 0.01) {
+        newEstado = 'PAGADO'
+      }
+
+      await db
+        .update(cuota)
+        .set({
+          estado: newEstado,
+          saldoPendiente: newSaldo.toFixed(2),
+          montoPagado: newMontoPagado.toFixed(2),
+          montoMora: newMora.toFixed(2),
+          fechaPago: newEstado === 'PAGADO' ? new Date() : inst.fechaPago
+        })
+        .where(eq(cuota.id, inst.id))
 
       // Record payment
       await db.insert(pago).values({
         cuotaId: inst.id,
         fechaPago: new Date(),
-        montoTotalRecibido: paymentForThis.toString(),
-        interesCobrado: '0.00',
-        capitalCobrado: paymentForThis.toString(),
+        montoTotalRecibido: totalPaidThisCuota.toFixed(2),
+        interesCobrado: moraPaidThisCuota.toFixed(2), // Using interesCobrado for mora
+        capitalCobrado: capitalPaidThisCuota.toFixed(2),
         medioPago: 'EFECTIVO',
         numeroRecibo: receiptNumber
       })
