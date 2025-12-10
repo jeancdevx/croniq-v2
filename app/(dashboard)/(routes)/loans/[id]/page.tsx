@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 
 import { getLoanById } from '@/modules/loans/data/get-loan-by-id'
+import { evaluateLateFees } from '@/modules/loans/server/evaluate-late-fees'
 import { LoanDetailActiveView } from '@/modules/loans/ui/views/loan-detail-active-view'
 import { LoanDetailDraftView } from '@/modules/loans/ui/views/loan-detail-draft-view'
 
@@ -39,5 +40,11 @@ export default async function LoanDetailPage({ params }: LoanDetailPageProps) {
     return <LoanDetailDraftView loan={loan} />
   }
 
-  return <LoanDetailActiveView loan={loan} />
+  // Para préstamos ACTIVOS, evaluar moras antes de mostrar
+  await evaluateLateFees(loan.id)
+
+  // Re-obtener el préstamo con moras actualizadas
+  const loanActualizado = await getLoanById(id)
+
+  return <LoanDetailActiveView loan={loanActualizado!} />
 }
