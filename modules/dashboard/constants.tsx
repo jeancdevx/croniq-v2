@@ -76,6 +76,21 @@ export const sidebarData: sidebarDataItems = {
       ]
     },
     {
+      title: 'Caja',
+      url: '/caja',
+      icon: Wallet2Icon,
+      items: [
+        {
+          title: 'Apertura / Cierre',
+          url: '/caja'
+        },
+        {
+          title: 'Historial',
+          url: '/caja/historial'
+        }
+      ]
+    },
+    {
       title: 'Envío de Mensajes',
       url: '/messages',
       icon: MessageSquareIcon,

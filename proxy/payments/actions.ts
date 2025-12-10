@@ -582,6 +582,18 @@ export async function registerCashPayment(data: {
   if (!db) return { success: false, error: 'No database connection' }
 
   try {
+    // Validar que haya sesión de caja abierta
+    const { getSesionActual } = await import('@/modules/caja/server')
+    const sesionResult = await getSesionActual()
+
+    if (!sesionResult.success || !sesionResult.sesionAbierta) {
+      return {
+        success: false,
+        error:
+          'No hay sesión de caja abierta. Debes abrir caja antes de registrar pagos en efectivo.'
+      }
+    }
+
     // 1. Get installments
     const installments = await db
       .select()
@@ -673,6 +685,21 @@ export async function registerCashPayment(data: {
         .update(prestamo)
         .set({ estado: 'PAGADO' })
         .where(eq(prestamo.id, data.loanId))
+    }
+
+    // Crear movimiento de caja
+    try {
+      const { crearMovimientoCaja } = await import('@/modules/caja/server')
+      await crearMovimientoCaja({
+        tipo: 'INGRESO',
+        categoria: 'PAGO_EFECTIVO',
+        monto: data.amount,
+        descripcion:
+          data.concept || `Pago en efectivo - ${processedCount} cuota(s)`
+      })
+    } catch (cajaError) {
+      console.warn('⚠️ No se pudo registrar movimiento de caja:', cajaError)
+      // No fallar el pago si falla el registro de caja
     }
 
     revalidatePath('/payments')

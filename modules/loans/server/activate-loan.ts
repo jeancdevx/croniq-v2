@@ -51,6 +51,18 @@ export async function activateLoan(
       }
     }
 
+    // Validar que haya sesión de caja abierta
+    const { getSesionActual } = await import('@/modules/caja/server')
+    const sesionResult = await getSesionActual()
+
+    if (!sesionResult.success || !sesionResult.sesionAbierta) {
+      return {
+        success: false,
+        error:
+          'No hay sesión de caja abierta. Debes abrir caja antes de desembolsar préstamos.'
+      }
+    }
+
     // Cambiar estado a ACTIVO
     await db
       .update(prestamo)
@@ -69,6 +81,25 @@ export async function activateLoan(
     } catch (error) {
       console.error('Error sending schedule automatically:', error)
       // No fallar la activación
+    }
+
+    // Crear movimiento de caja (egreso por desembolso)
+    try {
+      const { crearMovimientoCaja } = await import('@/modules/caja/server')
+      const montoDesembolso = Number(existingLoan.montoDesembolsado)
+
+      await crearMovimientoCaja({
+        tipo: 'EGRESO',
+        categoria: 'DESEMBOLSO',
+        monto: montoDesembolso,
+        prestamoId: loanId,
+        descripcion: `Desembolso préstamo - S/ ${montoDesembolso.toFixed(2)}`
+      })
+
+      console.log(`✅ Movimiento caja: Desembolso S/ ${montoDesembolso}`)
+    } catch (cajaError) {
+      console.warn('⚠️ No se pudo registrar movimiento de caja:', cajaError)
+      // No fallar la activación si falla el registro de caja
     }
 
     revalidatePath('/loans')
