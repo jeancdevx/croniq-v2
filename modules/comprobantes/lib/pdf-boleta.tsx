@@ -12,6 +12,7 @@ import {
 import type { cliente, comprobante, comprobanteDetalle } from '@/db/schema'
 
 import { formatCurrency, formatDateTime } from './format-helpers'
+import { numberToWords } from './number-to-words'
 
 // Rutas absolutas de imágenes
 const LOGO_PATH = path.join(process.cwd(), 'public', 'banco-kernel.png')
@@ -135,6 +136,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     padding: 8,
     marginTop: 5
+  },
+  // Monto en letras
+  montoEnLetras: {
+    marginTop: 15,
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 4,
+    border: '1px solid #ddd'
+  },
+  montoEnLetrasText: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    textAlign: 'center',
+    color: '#333'
   },
   // QR y footer
   footer: {
@@ -291,6 +306,13 @@ export function BoletaPDF({
               {formatCurrency(Number(comprobante.montoTotal))}
             </Text>
           </View>
+        </View>
+
+        {/* Monto en letras */}
+        <View style={styles.montoEnLetras}>
+          <Text style={styles.montoEnLetrasText}>
+            SON: {numberToWords(Number(comprobante.montoTotal), 'PEN')}
+          </Text>
         </View>
 
         {/* Footer: QR + Info */}
