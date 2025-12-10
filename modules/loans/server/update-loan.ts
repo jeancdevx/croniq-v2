@@ -6,21 +6,33 @@ import { eq } from 'drizzle-orm'
 
 import { getDb } from '@/db'
 import { cuota, prestamo } from '@/db/schema'
-import { getExchangeRate } from '@/lib/exchange-rate'
 
 import {
   calculateFirstDueDate,
   generateAmortizationSchedule
 } from '../lib/amortization'
 import {
-  calculateDisbursementFee,
-  calculateTCEA,
+  calculateTCEAWithDays,
   calculateTEM,
   roundToFour,
   roundToSix,
   roundToTwo
 } from '../lib/financial-calcs'
 import { updateLoanSchema } from '../schemas'
+
+/**
+ * Helper: Calcula días entre dos fechas
+ */
+const daysBetween = (start: Date, end: Date): number => {
+  const MS_PER_DAY = 1000 * 60 * 60 * 24
+  const startUTC = Date.UTC(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate()
+  )
+  const endUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate())
+  return Math.floor((endUTC - startUTC) / MS_PER_DAY)
+}
 
 interface UpdateLoanResult {
   success: boolean
@@ -77,35 +89,11 @@ export async function updateLoan(
     const tem = roundToSix(calculateTEM(teaDecimal))
     const montoSolicitado = parseFloat(existingLoan.montoSolicitado)
 
-    // 4. Calcular comisión EN LA MONEDA DEL PRÉSTAMO
-    const comisionDesembolso = roundToTwo(
-      calculateDisbursementFee(montoSolicitado, 0.02)
-    )
-    const montoDesembolsado = roundToTwo(montoSolicitado - comisionDesembolso)
+    // 4. SIN comisión de desembolso
+    const montoDesembolsado = montoSolicitado
 
-    // 5. Obtener tipo de cambio si cambiaron las monedas
-    let tipoCambioDesembolso: number | null = null
-
-    if (existingLoan.monedaPrestamo !== validatedData.monedaPago) {
-      const hoy = new Date()
-      const year = hoy.getFullYear()
-      const month = String(hoy.getMonth() + 1).padStart(2, '0')
-      const day = String(hoy.getDate()).padStart(2, '0')
-      const fechaStr = `${year}-${month}-${day}`
-
-      console.log('Fetching exchange rate for TODAY:', fechaStr)
-
-      const exchangeRateResult = await getExchangeRate(fechaStr)
-
-      if (!exchangeRateResult.success) {
-        return {
-          success: false,
-          error: 'No se pudo obtener el tipo de cambio. Intente nuevamente.'
-        }
-      }
-
-      tipoCambioDesembolso = roundToFour(exchangeRateResult.data.venta)
-    }
+    // 5. Sistema solo trabaja en SOLES (PEN)
+    // No hay tipo de cambio ni conversión de moneda
 
     // 6. Generar nuevo cronograma EN LA MONEDA DEL PRÉSTAMO
     const fechaPrimerVencimiento = calculateFirstDueDate(
@@ -123,37 +111,28 @@ export async function updateLoan(
     })
 
     // 7. Calcular totales
-    const totalAPagarEnMonedaPrestamo = roundToTwo(
+    // 7. Calcular totales EN SOLES (PEN)
+    const totalAPagar = roundToTwo(
       cronograma.reduce((sum, c) => sum + c.totalConSeguro, 0)
     )
 
-    // 8. Si paga en moneda diferente, convertir el total
-    const totalAPagar =
-      existingLoan.monedaPrestamo !== validatedData.monedaPago &&
-      tipoCambioDesembolso
-        ? roundToTwo(
-            existingLoan.monedaPrestamo === 'USD'
-              ? totalAPagarEnMonedaPrestamo * tipoCambioDesembolso
-              : totalAPagarEnMonedaPrestamo / tipoCambioDesembolso
-          )
-        : totalAPagarEnMonedaPrestamo
+    // 8. Calcular TCEA usando días reales
+    const cuotasConDias = cronograma.map(c => ({
+      monto: c.totalConSeguro,
+      dias: daysBetween(fechaDesembolso, c.fechaVencimiento)
+    }))
 
-    // 9. Calcular TCEA
     const tcea = roundToFour(
-      calculateTCEA(
-        montoDesembolsado,
-        cronograma.map(c => c.totalConSeguro),
-        validatedData.numeroCuotas
-      )
+      calculateTCEAWithDays(montoDesembolsado, cuotasConDias)
     )
 
-    // 10. Actualizar préstamo
+    // 9. Actualizar préstamo
     await db
       .update(prestamo)
       .set({
         numeroCuotas: validatedData.numeroCuotas,
-        monedaPago: validatedData.monedaPago,
-        tipoCambioDesembolso: tipoCambioDesembolso?.toString() || null,
+        monedaPago: 'PEN',
+        tipoCambioDesembolso: null,
         fechaDesembolso: validatedData.fechaDesembolso,
         fechaPrimerVencimiento: fechaPrimerVencimiento
           .toISOString()

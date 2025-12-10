@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 
 import { getDb } from '@/db'
 import { cuota, prestamo } from '@/db/schema'
-import { getExchangeRate } from '@/lib/exchange-rate'
 
 import {
   calculateFirstDueDate,
@@ -81,30 +80,9 @@ export async function createLoan(
     // 4. SIN comisión de desembolso (según SBS Perú 2025)
     // Monto solicitado = Monto desembolsado
     const montoDesembolsado = validatedData.montoSolicitado
-    const comisionDesembolso = 0
 
-    // 5. Obtener tipo de cambio si las monedas son diferentes
-    let tipoCambioDesembolso: number | null = null
-
-    if (validatedData.monedaPrestamo !== validatedData.monedaPago) {
-      const hoy = new Date()
-      const year = hoy.getFullYear()
-      const month = String(hoy.getMonth() + 1).padStart(2, '0')
-      const day = String(hoy.getDate()).padStart(2, '0')
-      const fechaStr = `${year}-${month}-${day}`
-
-      const exchangeRateResult = await getExchangeRate(fechaStr)
-
-      if (!exchangeRateResult.success) {
-        return {
-          success: false,
-          error: 'No se pudo obtener el tipo de cambio. Intente nuevamente.'
-        }
-      }
-
-      // Ya incluye el 2% de margen
-      tipoCambioDesembolso = roundToFour(exchangeRateResult.data.venta)
-    }
+    // 5. Sistema solo trabaja en SOLES (PEN)
+    // No hay tipo de cambio ni conversión de moneda
 
     // 6. Generar cronograma EN LA MONEDA DEL PRÉSTAMO (USD)
     // La deuda "vive" en USD, el sistema francés opera en USD
@@ -123,21 +101,10 @@ export async function createLoan(
       tasaSeguroDesgravamen: 0.0018
     })
 
-    // 7. Calcular totales EN LA MONEDA DEL PRÉSTAMO
-    const totalAPagarEnMonedaPrestamo = roundToTwo(
+    // 7. Calcular totales EN SOLES (PEN)
+    const totalAPagar = roundToTwo(
       cronograma.reduce((sum, c) => sum + c.totalConSeguro, 0)
     )
-
-    // 8. Si paga en moneda diferente, convertir el total para mostrar
-    const totalAPagar =
-      validatedData.monedaPrestamo !== validatedData.monedaPago &&
-      tipoCambioDesembolso
-        ? roundToTwo(
-            validatedData.monedaPrestamo === 'USD'
-              ? totalAPagarEnMonedaPrestamo * tipoCambioDesembolso
-              : totalAPagarEnMonedaPrestamo / tipoCambioDesembolso
-          )
-        : totalAPagarEnMonedaPrestamo
 
     // 9. Calcular TCEA EN LA MONEDA DEL PRÉSTAMO usando días reales
     // TCEA compara lo que RECIBES vs lo que PAGAS usando días/360
@@ -169,9 +136,9 @@ export async function createLoan(
         porcentajeComisionDesembolso: '0.00',
         numeroCuotas: validatedData.numeroCuotas,
         frecuencia: 'MENSUAL',
-        monedaPrestamo: validatedData.monedaPrestamo,
-        monedaPago: validatedData.monedaPago,
-        tipoCambioDesembolso: tipoCambioDesembolso?.toString() || null,
+        monedaPrestamo: 'PEN',
+        monedaPago: 'PEN',
+        tipoCambioDesembolso: null,
         fechaDesembolso: validatedData.fechaDesembolso,
         fechaPrimerVencimiento: fechaPrimerVencimiento
           .toISOString()
