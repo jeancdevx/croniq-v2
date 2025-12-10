@@ -371,27 +371,27 @@ export async function generatePaymentLink(data: {
       .where(eq(pagoFlow.flowOrder, commerceOrder))
 
     // 3. Enviar WhatsApp si hay clientId
-    if (data.clientId) {
-      try {
-        const [clientData] = await db
-          .select({
-            phone: cliente.telefono,
-            nombres: cliente.nombres
-          })
-          .from(cliente)
-          .where(eq(cliente.id, data.clientId))
+    // if (data.clientId) {
+    //   try {
+    //     const [clientData] = await db
+    //       .select({
+    //         phone: cliente.telefono,
+    //         nombres: cliente.nombres
+    //       })
+    //       .from(cliente)
+    //       .where(eq(cliente.id, data.clientId))
 
-        if (clientData && clientData.phone) {
-          const paymentUrl = `${response.url}?token=${response.token}`
-          const message = `Hola ${clientData.nombres}, se ha generado un link de pago para: *${data.concept}*.\n\nMonto: S/ ${data.amount.toFixed(2)}\n\nPuedes pagar aquí: ${paymentUrl}`
+    //     if (clientData && clientData.phone) {
+    //       const paymentUrl = `${response.url}?token=${response.token}`
+    //       const message = `Hola ${clientData.nombres}, se ha generado un link de pago para: *${data.concept}*.\n\nMonto: S/ ${data.amount.toFixed(2)}\n\nPuedes pagar aquí: ${paymentUrl}`
 
-          await sendWhatsappMessage(clientData.phone, message)
-        }
-      } catch (wsError) {
-        console.error('Error sending WhatsApp message:', wsError)
-        // No fallamos la request principal si falla el WS
-      }
-    }
+    //       await sendWhatsappMessage(clientData.phone, message)
+    //     }
+    //   } catch (wsError) {
+    //     console.error('Error sending WhatsApp message:', wsError)
+    //     // No fallamos la request principal si falla el WS
+    //   }
+    // }
 
     return {
       success: true,
@@ -440,6 +440,85 @@ export async function resendPaymentLink(data: {
   } catch (error) {
     console.error('Error resending payment link:', error)
     return { success: false, error: 'Error enviando mensaje de WhatsApp' }
+  }
+}
+
+export async function checkPaymentStatus(token: string) {
+  const db = getDb()
+  if (!db) return { success: false, status: 'UNKNOWN' }
+
+  try {
+    // 1. Check DB Status
+    const existingPayment = await db.query.pagoFlow.findFirst({
+      where: eq(pagoFlow.flowToken, token)
+    })
+
+    if (!existingPayment) return { success: false, status: 'NOT_FOUND' }
+
+    if (existingPayment.estado === 'PAGADO') {
+      return { success: true, status: 'PAGADO' }
+    }
+
+    // 2. If Pending, check Flow API
+    const { getFlowOrderStatus } = await import('@/proxy/payments/flow-service')
+    const status = await getFlowOrderStatus(token)
+
+    if (status.status === 2) {
+      // 2 = Pagada
+      // Update DB
+      await db
+        .update(pagoFlow)
+        .set({
+          estado: 'PAGADO',
+          fechaPago: new Date(),
+          medioPago: status.paymentData?.media || 'Flow'
+        })
+        .where(eq(pagoFlow.flowToken, token))
+
+      // Process Loan
+      if (existingPayment.prestamoId && existingPayment.montoBase) {
+        await processLoanPayment(
+          existingPayment.prestamoId,
+          Number(existingPayment.montoBase),
+          existingPayment.id
+        )
+      }
+
+      // Register Caja Movement
+      try {
+        const { calcularComisionFlow, determinarMedioPagoFlow } =
+          await import('@/modules/caja/lib/calcular-comision-flow')
+        const { crearMovimientoCaja } = await import('@/modules/caja/server')
+
+        const mediaRaw = status.paymentData?.media || 'TARJETA'
+        const medioPago = determinarMedioPagoFlow(mediaRaw)
+        const montoBruto = Number(existingPayment.monto)
+        const { montoNeto, comisionTotal } = calcularComisionFlow(
+          montoBruto,
+          medioPago
+        )
+
+        await crearMovimientoCaja({
+          tipo: 'INGRESO',
+          categoria: 'PAGO_FLOW',
+          monto: montoNeto,
+          montoBruto,
+          comisionFlow: comisionTotal,
+          medioPagoFlow: medioPago,
+          pagoFlowId: existingPayment.id,
+          descripcion: `Pago Flow - ${status.commerceOrder}`
+        })
+      } catch (e) {
+        console.error('Error registering box movement in polling:', e)
+      }
+
+      return { success: true, status: 'PAGADO' }
+    }
+
+    return { success: true, status: existingPayment.estado }
+  } catch (error) {
+    console.error('Error checking payment status:', error)
+    return { success: false, status: 'ERROR' }
   }
 }
 

@@ -3,6 +3,7 @@ export type CategoriaMovimiento =
   | 'CAPITAL_INICIAL'
   | 'PAGO_EFECTIVO' // Pago en efectivo (va a caja física)
   | 'PAGO_TARJETA' // Pago con tarjeta/Flow (NO va a caja física)
+  | 'PAGO_FLOW' // Pago procesado por Flow (con detalle de comisiones)
   | 'INYECCION_EFECTIVO' // Agregar dinero a caja para cambio
   | 'RETIRO_EFECTIVO' // Sacar dinero de caja al cerrar
   | 'DESEMBOLSO' // Préstamo otorgado (sale de caja)

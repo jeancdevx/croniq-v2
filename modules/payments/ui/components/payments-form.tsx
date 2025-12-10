@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import { Banknote, Check, CreditCard, Loader2, Send } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+
+import { Banknote, Check, Copy, CreditCard, Loader2 } from 'lucide-react'
 
 import {
+  checkPaymentStatus,
   generatePaymentLink,
   getInstallmentsByLoanId,
   getLoansByClientId,
-  registerCashPayment,
-  resendPaymentLink
+  registerCashPayment
 } from '@/proxy/payments/actions'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { QRCodeCanvas } from 'qrcode.react'
@@ -79,6 +81,7 @@ const COMMISSIONS = {
 }
 
 export function PaymentsForm() {
+  const router = useRouter()
   const [paymentType, setPaymentType] = useState<'EFECTIVO' | 'FLOW'>(
     'EFECTIVO'
   )
@@ -97,7 +100,9 @@ export function PaymentsForm() {
     clientId: string
     concept: string
     amount: number
+    token: string
   } | null>(null)
+  const [isPaymentConfirmed, setIsPaymentConfirmed] = useState(false)
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -258,13 +263,14 @@ export function PaymentsForm() {
           loanId: values.loanId
         })
 
-        if (result.success && result.url) {
+        if (result.success && result.url && result.token) {
           toast.success('Link de pago generado exitosamente')
           setGeneratedLink({
             url: result.url,
             clientId: values.clientId,
             concept: values.concept,
-            amount: Number(total.toFixed(2))
+            amount: Number(total.toFixed(2)),
+            token: result.token
           })
         } else {
           toast.error(result.error || 'Error al generar el link de pago')
@@ -314,31 +320,6 @@ export function PaymentsForm() {
     }
   }
 
-  const handleResendWhatsapp = async () => {
-    if (!generatedLink) return
-
-    setIsLoading(true)
-    try {
-      const result = await resendPaymentLink({
-        clientId: generatedLink.clientId,
-        url: generatedLink.url,
-        concept: generatedLink.concept,
-        amount: generatedLink.amount
-      })
-
-      if (result.success) {
-        toast.success('Link reenviado por WhatsApp exitosamente')
-      } else {
-        toast.error(result.error || 'Error al reenviar el link')
-      }
-    } catch (error) {
-      console.error(error)
-      toast.error('Error al reenviar el link')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const handleSelectInstallment = useCallback(
     (installment: Cuota) => {
       const pendingAmount = Number(
@@ -365,6 +346,30 @@ export function PaymentsForm() {
     }
   }, [installments, paymentMode, handleSelectInstallment])
 
+  // Poll for payment status
+  useEffect(() => {
+    if (!generatedLink || !generatedLink.token || isPaymentConfirmed) return
+
+    const intervalId = setInterval(async () => {
+      try {
+        const result = await checkPaymentStatus(generatedLink.token)
+        if (result.success && result.status === 'PAGADO') {
+          setIsPaymentConfirmed(true)
+          clearInterval(intervalId)
+          toast.success('¡Pago confirmado exitosamente!')
+          // Redirect after 3 seconds
+          setTimeout(() => {
+            router.push('/payments')
+          }, 3000)
+        }
+      } catch (error) {
+        console.error('Error polling payment status:', error)
+      }
+    }, 3000) // Check every 3 seconds
+
+    return () => clearInterval(intervalId)
+  }, [generatedLink, isPaymentConfirmed, router])
+
   if (generatedLink) {
     return (
       <Card>
@@ -374,49 +379,84 @@ export function PaymentsForm() {
             Link Generado Exitosamente
           </CardTitle>
           <CardDescription>
-            El link de pago ha sido generado y enviado al cliente.
+            El link de pago ha sido generado exitosamente.
           </CardDescription>
         </CardHeader>
         <CardContent className='flex flex-col items-center gap-6 pt-4'>
-          <div className='rounded-lg border bg-white p-4 shadow-sm'>
-            <QRCodeCanvas value={generatedLink.url} size={200} />
-          </div>
+          {isPaymentConfirmed ? (
+            <div className='animate-in fade-in zoom-in flex flex-col items-center justify-center space-y-4 py-8 duration-500'>
+              <div className='rounded-full bg-green-100 p-6'>
+                <Check className='h-12 w-12 text-green-600' />
+              </div>
+              <div className='text-center'>
+                <h3 className='text-2xl font-bold text-green-700'>
+                  ¡Pago Confirmado!
+                </h3>
+                <p className='text-muted-foreground'>Redirigiendo a pagos...</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className='relative'>
+                <div className='rounded-lg border bg-white p-4 shadow-sm'>
+                  <QRCodeCanvas value={generatedLink.url} size={200} />
+                </div>
+                <div className='absolute -top-3 -right-3'>
+                  <span className='flex h-6 w-6 items-center justify-center rounded-full bg-blue-500'>
+                    <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75'></span>
+                    <Loader2 className='h-3 w-3 animate-spin text-white' />
+                  </span>
+                </div>
+              </div>
 
-          <div className='space-y-2 text-center'>
-            <p className='text-lg font-medium'>{generatedLink.concept}</p>
-            <p className='text-muted-foreground'>
-              Monto: S/ {generatedLink.amount.toFixed(2)}
-            </p>
-          </div>
+              <div className='flex animate-pulse items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-600'>
+                <Loader2 className='h-3 w-3 animate-spin' />
+                Esperando pago...
+              </div>
 
-          <div className='flex w-full flex-col gap-3 sm:flex-row sm:justify-center'>
-            <Button
-              variant='outline'
-              onClick={handleResendWhatsapp}
-              disabled={isLoading}
-              className='w-full sm:w-auto'
-            >
-              {isLoading ? (
-                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-              ) : (
-                <Send className='mr-2 h-4 w-4' />
-              )}
-              Reenviar por WhatsApp
-            </Button>
+              <div className='flex w-full max-w-sm items-center space-x-2'>
+                <Input
+                  value={generatedLink.url}
+                  readOnly
+                  className='h-9 text-xs'
+                />
+                <Button
+                  variant='outline'
+                  size='icon'
+                  className='h-9 w-9 shrink-0'
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedLink.url)
+                    toast.success('Link copiado al portapapeles')
+                  }}
+                >
+                  <Copy className='h-4 w-4' />
+                  <span className='sr-only'>Copiar link</span>
+                </Button>
+              </div>
 
-            <Button
-              variant='default'
-              onClick={() => {
-                setGeneratedLink(null)
-                form.reset()
-                setInstallments([])
-                setLoans([])
-              }}
-              className='w-full sm:w-auto'
-            >
-              Generar Nuevo Pago
-            </Button>
-          </div>
+              <div className='space-y-2 text-center'>
+                <p className='text-lg font-medium'>{generatedLink.concept}</p>
+                <p className='text-muted-foreground'>
+                  Monto: S/ {generatedLink.amount.toFixed(2)}
+                </p>
+              </div>
+
+              <div className='flex w-full flex-col gap-3 sm:flex-row sm:justify-center'>
+                <Button
+                  variant='default'
+                  onClick={() => {
+                    setGeneratedLink(null)
+                    form.reset()
+                    setInstallments([])
+                    setLoans([])
+                  }}
+                  className='w-full sm:w-auto'
+                >
+                  Generar Nuevo Pago
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     )
