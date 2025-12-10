@@ -2,11 +2,7 @@ import type { Cliente } from '@/db/types'
 
 import { LoanForm } from '../components/loan-form'
 
-interface NewLoanViewProps {
-  clients: Cliente[]
-}
-
-export function NewLoanView({ clients }: NewLoanViewProps) {
+export function NewLoanView() {
   return (
     <div className='flex flex-col gap-6'>
       <div>
@@ -17,7 +13,7 @@ export function NewLoanView({ clients }: NewLoanViewProps) {
       </div>
 
       <div className='bg-card rounded-lg border p-6'>
-        <LoanForm clients={clients} />
+        <LoanForm />
       </div>
     </div>
   )

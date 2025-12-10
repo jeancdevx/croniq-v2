@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 import { useRouter } from 'next/navigation'
 
-import { CalendarIcon, Check, ChevronsUpDown, Loader2 } from 'lucide-react'
+import { CalendarIcon, Loader2 } from 'lucide-react'
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
@@ -12,9 +12,9 @@ import { es } from 'date-fns/locale'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
-import type { Cliente } from '@/db/types'
 import { cn } from '@/lib/utils'
 
+import { ClientSearchCombobox } from '@/modules/clients/ui/client-search-combobox'
 import { createLoanSchema } from '@/modules/loans/schemas'
 import { createLoan } from '@/modules/loans/server'
 import type { LoanFormData } from '@/modules/loans/types'
@@ -28,14 +28,6 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList
-} from '@/components/ui/command'
 import {
   Form,
   FormControl,
@@ -53,14 +45,9 @@ import {
 } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 
-interface LoanFormProps {
-  clients: Cliente[]
-}
-
-export function LoanForm({ clients }: LoanFormProps) {
+export function LoanForm() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const [openClientCombobox, setOpenClientCombobox] = useState(false)
   const [openCalendar, setOpenCalendar] = useState(false)
 
   const form = useForm<LoanFormData>({
@@ -142,71 +129,14 @@ export function LoanForm({ clients }: LoanFormProps) {
               render={({ field }) => (
                 <FormItem className='flex flex-col'>
                   <FormLabel>Cliente *</FormLabel>
-                  <Popover
-                    open={openClientCombobox}
-                    onOpenChange={setOpenClientCombobox}
-                  >
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant='outline'
-                          role='combobox'
-                          className={cn(
-                            'justify-between',
-                            !field.value && 'text-muted-foreground'
-                          )}
-                          disabled={isLoading}
-                        >
-                          {field.value
-                            ? (() => {
-                                const client = clients.find(
-                                  c => c.id === field.value
-                                )
-                                return client
-                                  ? `${client.nombres} ${client.apellidos}`
-                                  : 'Seleccionar cliente'
-                              })()
-                            : 'Seleccionar cliente'}
-                          <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className='w-[400px] p-0'>
-                      <Command>
-                        <CommandInput placeholder='Buscar cliente...' />
-                        <CommandList>
-                          <CommandEmpty>
-                            No se encontró el cliente.
-                          </CommandEmpty>
-                          <CommandGroup>
-                            {clients.map(client => (
-                              <CommandItem
-                                key={client.id}
-                                value={`${client.nombres} ${client.apellidos}`}
-                                onSelect={() => {
-                                  form.setValue('clienteId', client.id)
-                                  setOpenClientCombobox(false)
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    'mr-2 h-4 w-4',
-                                    field.value === client.id
-                                      ? 'opacity-100'
-                                      : 'opacity-0'
-                                  )}
-                                />
-                                {client.nombres} {client.apellidos}
-                                <span className='text-muted-foreground ml-2 text-sm'>
-                                  (DNI: ********)
-                                </span>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <FormControl>
+                    <ClientSearchCombobox
+                      value={field.value}
+                      onSelect={value => field.onChange(value)}
+                      disabled={isLoading}
+                      placeholder='Seleccionar cliente'
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
