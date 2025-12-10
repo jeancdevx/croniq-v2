@@ -222,119 +222,163 @@ export function BCPSchedulePDF({ loan }: BCPSchedulePDFProps) {
   const totalGeneral =
     loan.cuotas?.reduce((sum, c) => sum + parseFloat(c.totalConSeguro), 0) || 0
 
-  return (
-    <Document>
-      <Page size='A4' style={styles.page}>
+  // Configuración de paginación
+  const CUOTAS_FIRST_PAGE = 20 // Menos cuotas en primera página por la info general
+  const CUOTAS_PER_PAGE = 30 // Cuotas en páginas subsecuentes
+  const totalCuotas = loan.cuotas?.length || 0
+
+  // Calcular número de páginas
+  const cuotasRestantes = Math.max(0, totalCuotas - CUOTAS_FIRST_PAGE)
+  const paginasAdicionales = Math.ceil(cuotasRestantes / CUOTAS_PER_PAGE)
+  const totalPages =
+    cuotasRestantes > 0 ? 1 + paginasAdicionales : totalCuotas > 0 ? 1 : 0
+
+  // Función para renderizar una página
+  const renderPage = (pageNumber: number, isLastPage: boolean) => {
+    // Calcular índices de cuotas para esta página
+    let startIndex: number
+    let endIndex: number
+
+    if (pageNumber === 1) {
+      // Primera página: mostrar solo CUOTAS_FIRST_PAGE
+      startIndex = 0
+      endIndex = Math.min(CUOTAS_FIRST_PAGE, totalCuotas)
+    } else {
+      // Páginas subsecuentes: mostrar CUOTAS_PER_PAGE
+      startIndex = CUOTAS_FIRST_PAGE + (pageNumber - 2) * CUOTAS_PER_PAGE
+      endIndex = Math.min(startIndex + CUOTAS_PER_PAGE, totalCuotas)
+    }
+
+    const cuotasEnPagina = loan.cuotas?.slice(startIndex, endIndex) || []
+
+    return (
+      <Page size='A4' style={styles.page} key={pageNumber}>
         {/* Header */}
         <View style={styles.header}>
           <Image src={LOGO_PATH} style={styles.logo} />
           <View>
             <Text style={styles.headerTitle}>Cronograma de Pagos</Text>
             <Text style={styles.headerSubtitle}>
-              Page 1 of {Math.ceil((loan.cuotas?.length || 0) / 30) || 1}
+              Page {pageNumber} of {totalPages}
             </Text>
           </View>
         </View>
 
-        {/* Información General - Primera Fila */}
-        <View style={styles.infoSection}>
-          <View style={styles.infoGrid}>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>Solicitud No.</Text>
-              <Text style={[styles.infoValue, { fontSize: 7 }]}>{loan.id}</Text>
+        {/* Información General - Solo en primera página */}
+        {pageNumber === 1 && (
+          <>
+            <View style={styles.infoSection}>
+              <View style={styles.infoGrid}>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>Solicitud No.</Text>
+                  <Text style={[styles.infoValue, { fontSize: 7 }]}>
+                    {loan.id}
+                  </Text>
+                </View>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>Importe desembolsado S/</Text>
+                  <Text style={styles.infoValue}>
+                    {formatCurrency(
+                      loan.montoDesembolsado,
+                      loan.monedaPrestamo
+                    )}
+                  </Text>
+                </View>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>Cuotas por pagar</Text>
+                  <Text style={styles.infoValue}>{loan.numeroCuotas}</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>Importe desembolsado S/</Text>
-              <Text style={styles.infoValue}>
-                {formatCurrency(loan.montoDesembolsado, loan.monedaPrestamo)}
-              </Text>
-            </View>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>Cuotas por pagar</Text>
-              <Text style={styles.infoValue}>{loan.numeroCuotas}</Text>
-            </View>
-          </View>
 
-          {/* Segunda Fila */}
-          <View style={styles.infoGrid}>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>Nombre cliente</Text>
-              <Text style={styles.infoValue}>
-                {loan.cliente
-                  ? `${loan.cliente.apellidos}, ${loan.cliente.nombres} `
-                  : '-'}
-              </Text>
+            <View style={styles.infoSection}>
+              <View style={styles.infoGrid}>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>Nombre cliente</Text>
+                  <Text style={styles.infoValue}>
+                    {loan.cliente?.apellidos}, {loan.cliente?.nombres}
+                  </Text>
+                </View>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>
+                    Cantidad total a pagar S/
+                  </Text>
+                  <Text style={styles.infoValue}>
+                    {formatCurrency(loan.totalAPagar, loan.monedaPrestamo)}
+                  </Text>
+                </View>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>
+                    Tasa compensatoria efectiva anual fija
+                  </Text>
+                  <Text style={styles.infoValue}>
+                    {formatPercent(loan.tea)}
+                  </Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>Cantidad total a pagar S/</Text>
-              <Text style={styles.infoValue}>
-                {formatCurrency(loan.totalAPagar, loan.monedaPago)}
-              </Text>
-            </View>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>
-                Tasa compensatoria efectiva anual fija
-              </Text>
-              <Text style={styles.infoValue}>{formatPercent(loan.tea)}</Text>
-            </View>
-          </View>
 
-          {/* Tercera Fila */}
-          <View style={styles.infoGrid}>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>Producto</Text>
-              <Text style={styles.infoValue}>CREDITO EFECTIVO</Text>
+            <View style={styles.infoSection}>
+              <View style={styles.infoGrid}>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>Producto</Text>
+                  <Text style={styles.infoValue}>CREDITO EFECTIVO</Text>
+                </View>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>
+                    Monto total interés compensatorio S/
+                  </Text>
+                  <Text style={styles.infoValue}>
+                    {formatCurrency(totalInteres, loan.monedaPrestamo)}
+                  </Text>
+                </View>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>Saldo Actual</Text>
+                  <Text style={styles.infoValue}>
+                    {formatPercent(loan.tcea)}
+                  </Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>
-                Monto total interés compensatorio S/
-              </Text>
-              <Text style={styles.infoValue}>
-                {formatCurrency(totalInteres, loan.monedaPrestamo)}
-              </Text>
-            </View>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>Tasa Efectivo Anual</Text>
-              <Text style={styles.infoValue}>{formatPercent(loan.tcea)}</Text>
-            </View>
-          </View>
 
-          {/* Cuarta Fila */}
-          <View style={styles.infoGrid}>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>
-                Fecha de Emisión del Cronograma
-              </Text>
-              <Text style={styles.infoValue}>
-                {formatDateTime(loan.createdAt)}
-              </Text>
+            <View style={styles.infoSection}>
+              <View style={styles.infoGrid}>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>
+                    Fecha de Emisión del Cronograma
+                  </Text>
+                  <Text style={styles.infoValue}>
+                    {formatDateTime(loan.createdAt)}
+                  </Text>
+                </View>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>Fecha Desembolso</Text>
+                  <Text style={styles.infoValue}>
+                    {formatDate(loan.fechaDesembolso)}
+                  </Text>
+                </View>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>Periodicidad</Text>
+                  <Text style={styles.infoValue}>MENSUAL</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>Fecha Desembolso</Text>
-              <Text style={styles.infoValue}>
-                {formatDate(loan.fechaDesembolso)}
-              </Text>
-            </View>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>Periodicidad</Text>
-              <Text style={styles.infoValue}>{loan.frecuencia}</Text>
-            </View>
-          </View>
 
-          {/* Quinta Fila */}
-          <View style={styles.infoGrid}>
-            <View style={styles.infoColumn}>
-              <Text style={styles.infoLabel}>Tasa Seguro Bien/SPF</Text>
-              <Text style={styles.infoValue}>
-                {formatPercent(loan.tasaSeguroDesgravamen, true)}
-              </Text>
+            <View style={styles.infoSection}>
+              <View style={styles.infoGrid}>
+                <View style={styles.infoColumn}>
+                  <Text style={styles.infoLabel}>Tasa Seguro BienSPF</Text>
+                  <Text style={styles.infoValue}>
+                    {formatPercent(loan.tasaSeguroDesgravamen, true)}
+                  </Text>
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
+          </>
+        )}
 
-        {/* Tabla de Cronograma */}
+        {/* Tabla de Cuotas */}
         <View style={styles.table}>
-          {/* Header */}
           <View style={styles.tableHeader}>
             <Text style={styles.colDate}>Próximo{'\n'}Vencimiento</Text>
             <Text style={styles.colAmount}>Amortización</Text>
@@ -343,8 +387,7 @@ export function BCPSchedulePDF({ loan }: BCPSchedulePDFProps) {
             <Text style={styles.colAmount}>Cuota</Text>
           </View>
 
-          {/* Rows - Mostrar solo primeras 30 cuotas en primera página */}
-          {loan.cuotas?.slice(0, 30).map(cuota => (
+          {cuotasEnPagina.map(cuota => (
             <View style={styles.tableRow} key={cuota.id}>
               <Text style={styles.colDate}>
                 {formatDate(cuota.fechaVencimiento)}
@@ -364,92 +407,8 @@ export function BCPSchedulePDF({ loan }: BCPSchedulePDFProps) {
             </View>
           ))}
 
-          {/* Totals Row */}
-          <View style={styles.tableTotalsRow}>
-            <Text style={styles.colLabel}>TOTALES</Text>
-            <Text style={styles.colAmountBold}>{totalCapital.toFixed(2)}</Text>
-            <Text style={styles.colAmountBold}>{totalInteres.toFixed(2)}</Text>
-            <Text style={styles.colAmountBold}>{totalSeguro.toFixed(2)}</Text>
-            <Text style={styles.colAmountBold}>{totalGeneral.toFixed(2)}</Text>
-          </View>
-        </View>
-
-        {/* Footer con Notas */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Este cronograma se elabora bajo el supuesto cumplimiento del pago de
-            las cuotas en las fechas indicadas. Cualquier alteración en los
-            pagos o en las condiciones del crédito, deja sin efecto este
-            documento.
-          </Text>
-          <Text style={styles.footerText}>
-            El presente cronograma ha sido calculado en base a 5 decimales y
-            redondeado a 2; por tanto la sumatoria de los montos indicados en el
-            detalle pueden presentar diferencias respecto a los totales
-            mostrados.
-          </Text>
-          <Text style={styles.footerText}>
-            Tasa SPF: se calcula sobre el monto desembolsado.
-          </Text>
-          <Text style={styles.footerText}>
-            Tasa de interés compensatoria efectiva anual (TEA) expresada en un
-            año de 360 días.
-          </Text>
-        </View>
-
-        {/* Firma */}
-        <View style={styles.signature}>
-          <View style={styles.signatureBlock}>
-            <Image src={SIGNATURE_PATH} style={styles.signatureImage} />
-            <View style={styles.signatureLine} />
-            <Text style={styles.signatureLabel}>Croniq</Text>
-            <Text style={styles.signatureName}>Sistema de Gestión</Text>
-          </View>
-        </View>
-      </Page>
-
-      {/* Páginas adicionales si hay más de 30 cuotas */}
-      {(loan.cuotas?.length || 0) > 30 && (
-        <Page size='A4' style={styles.page}>
-          <View style={styles.header}>
-            <Image src={LOGO_PATH} style={styles.logo} />
-            <View>
-              <Text style={styles.headerTitle}>Cronograma de Pagos</Text>
-              <Text style={styles.headerSubtitle}>
-                Page 2 of {Math.ceil((loan.cuotas?.length || 0) / 30)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <Text style={styles.colDate}>Próximo{'\n'}Vencimiento</Text>
-              <Text style={styles.colAmount}>Amortización</Text>
-              <Text style={styles.colAmount}>Interés</Text>
-              <Text style={styles.colAmount}>Seguro{'\n'}Desgravamen</Text>
-              <Text style={styles.colAmount}>Cuota</Text>
-            </View>
-
-            {loan.cuotas?.slice(30).map(cuota => (
-              <View style={styles.tableRow} key={cuota.id}>
-                <Text style={styles.colDate}>
-                  {formatDate(cuota.fechaVencimiento)}
-                </Text>
-                <Text style={styles.colAmount}>
-                  {parseFloat(cuota.capital).toFixed(2)}
-                </Text>
-                <Text style={styles.colAmount}>
-                  {parseFloat(cuota.interes).toFixed(2)}
-                </Text>
-                <Text style={styles.colAmount}>
-                  {parseFloat(cuota.seguroDesgravamen).toFixed(2)}
-                </Text>
-                <Text style={styles.colAmount}>
-                  {parseFloat(cuota.totalConSeguro).toFixed(2)}
-                </Text>
-              </View>
-            ))}
-
+          {/* Totals Row - SOLO en la última página */}
+          {isLastPage && (
             <View style={styles.tableTotalsRow}>
               <Text style={styles.colLabel}>TOTALES</Text>
               <Text style={styles.colAmountBold}>
@@ -463,16 +422,56 @@ export function BCPSchedulePDF({ loan }: BCPSchedulePDFProps) {
                 {totalGeneral.toFixed(2)}
               </Text>
             </View>
-          </View>
+          )}
+        </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Este cronograma se elabora bajo el supuesto cumplimiento del pago
-              de las cuotas en las fechas indicadas.
-            </Text>
-          </View>
-        </Page>
-      )}
+        {/* Footer con Notas - SOLO en la última página */}
+        {isLastPage && (
+          <>
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                Este cronograma se elabora bajo el supuesto cumplimiento del
+                pago de las cuotas en las fechas indicadas. Cualquier alteración
+                en los pagos o en las condiciones del crédito, deja sin efecto
+                este documento.
+              </Text>
+              <Text style={styles.footerText}>
+                El presente cronograma ha sido calculado en base a 5 decimales y
+                redondeado a 2; por tanto la sumatoria de los montos indicados
+                en el detalle pueden presentar diferencias respecto a los
+                totales mostrados.
+              </Text>
+              <Text style={styles.footerText}>
+                Tasa SPF: se calcula sobre el monto desembolsado.
+              </Text>
+              <Text style={styles.footerText}>
+                Tasa de interés compensatoria efectiva anual (TEA) expresada en
+                un año de 360 días.
+              </Text>
+            </View>
+
+            {/* Firma */}
+            <View style={styles.signature}>
+              <View style={styles.signatureBlock}>
+                <Image src={SIGNATURE_PATH} style={styles.signatureImage} />
+                <View style={styles.signatureLine} />
+                <Text style={styles.signatureLabel}>Croniq</Text>
+                <Text style={styles.signatureName}>Sistema de Gestión</Text>
+              </View>
+            </View>
+          </>
+        )}
+      </Page>
+    )
+  }
+
+  return (
+    <Document>
+      {Array.from({ length: totalPages }, (_, index) => {
+        const pageNumber = index + 1
+        const isLastPage = pageNumber === totalPages
+        return renderPage(pageNumber, isLastPage)
+      })}
     </Document>
   )
 }
