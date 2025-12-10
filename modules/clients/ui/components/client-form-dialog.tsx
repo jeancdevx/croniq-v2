@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Loader2, Search } from 'lucide-react'
 
@@ -8,8 +8,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
+import { Cliente } from '@/db/types'
+
 import { createUserSchema } from '@/modules/clients/schemas'
-import { createUser, searchDni } from '@/modules/clients/server'
+import { createUser, searchDni, updateClient } from '@/modules/clients/server'
 import { CreateUser } from '@/modules/clients/types'
 
 import { Button } from '@/components/ui/button'
@@ -33,18 +35,21 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 
-interface CreateClientDialogProps {
+interface ClientFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  client?: Cliente | null
 }
 
-export function CreateClientDialog({
+export function ClientFormDialog({
   open,
-  onOpenChange
-}: CreateClientDialogProps) {
+  onOpenChange,
+  client
+}: ClientFormDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [dniFound, setDniFound] = useState(false)
+  const isEdit = !!client
 
   const form = useForm<CreateUser>({
     resolver: zodResolver(createUserSchema),
@@ -57,6 +62,32 @@ export function CreateClientDialog({
       email: ''
     }
   })
+
+  useEffect(() => {
+    if (open) {
+      if (client) {
+        form.reset({
+          dni: client.dni,
+          nombres: client.nombres,
+          apellidos: client.apellidos,
+          direccion: client.direccion || '',
+          telefono: client.telefono,
+          email: client.email || ''
+        })
+        setDniFound(true) // Assume existing client data is valid
+      } else {
+        form.reset({
+          dni: '',
+          nombres: '',
+          apellidos: '',
+          direccion: '',
+          telefono: '',
+          email: ''
+        })
+        setDniFound(false)
+      }
+    }
+  }, [open, client, form])
 
   const handleDniSearch = async () => {
     const dni = form.getValues('dni')
@@ -111,18 +142,27 @@ export function CreateClientDialog({
       formData.append('telefono', data.telefono)
       formData.append('email', data.email || '')
 
-      const result = await createUser(formData)
+      let result
+      if (isEdit && client) {
+        result = await updateClient(client.id, formData)
+      } else {
+        result = await createUser(formData)
+      }
 
       if (result.success) {
         toast.success('¡Éxito!', {
           description: result.message
         })
-        form.reset()
-        setDniFound(false)
+        if (!isEdit) {
+          form.reset()
+          setDniFound(false)
+        }
         onOpenChange(false)
       } else {
         toast.error('Error', {
-          description: result.error || 'Error al crear el cliente'
+          description:
+            result.error ||
+            `Error al ${isEdit ? 'actualizar' : 'crear'} el cliente`
         })
       }
     } catch {
@@ -138,10 +178,13 @@ export function CreateClientDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-[600px]'>
         <DialogHeader>
-          <DialogTitle>Agregar Nuevo Cliente</DialogTitle>
+          <DialogTitle>
+            {isEdit ? 'Editar Cliente' : 'Agregar Nuevo Cliente'}
+          </DialogTitle>
           <DialogDescription>
-            Ingrese el DNI para buscar los datos automáticamente o complete el
-            formulario manualmente.
+            {isEdit
+              ? 'Modifique los datos del cliente.'
+              : 'Ingrese el DNI para buscar los datos automáticamente o complete el formulario manualmente.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -156,36 +199,37 @@ export function CreateClientDialog({
                   <div className='flex gap-2'>
                     <FormControl>
                       <Input
-                        type='password'
+                        type='password' // Keep password type for DNI as per original code, though usually text is fine.
                         placeholder='12345678'
-                        disabled={isLoading || isSearching}
+                        disabled={isLoading || isSearching || isEdit} // Disable DNI editing in edit mode? Usually yes.
                         maxLength={8}
                         {...field}
                         onChange={e => {
-                          // Solo permitir números
                           const value = e.target.value.replace(/\D/g, '')
                           field.onChange(value)
-                          setDniFound(false)
+                          if (!isEdit) setDniFound(false)
                         }}
                       />
                     </FormControl>
-                    <Button
-                      type='button'
-                      variant='secondary'
-                      size='icon'
-                      onClick={handleDniSearch}
-                      disabled={
-                        isLoading || isSearching || field.value.length !== 8
-                      }
-                    >
-                      {isSearching ? (
-                        <Loader2 className='h-4 w-4 animate-spin' />
-                      ) : (
-                        <Search className='h-4 w-4' />
-                      )}
-                    </Button>
+                    {!isEdit && (
+                      <Button
+                        type='button'
+                        variant='secondary'
+                        size='icon'
+                        onClick={handleDniSearch}
+                        disabled={
+                          isLoading || isSearching || field.value.length !== 8
+                        }
+                      >
+                        {isSearching ? (
+                          <Loader2 className='h-4 w-4 animate-spin' />
+                        ) : (
+                          <Search className='h-4 w-4' />
+                        )}
+                      </Button>
+                    )}
                   </div>
-                  {dniFound && (
+                  {!isEdit && dniFound && (
                     <FormDescription className='text-green-600'>
                       ✓ Datos encontrados en RENIEC
                     </FormDescription>
@@ -205,7 +249,11 @@ export function CreateClientDialog({
                     <FormControl>
                       <Input
                         placeholder='Se completará al buscar DNI'
-                        disabled={true}
+                        disabled={!isEdit} // Disabled in create mode (relies on search), enabled in edit mode? Or always disabled?
+                        // Original code had disabled={true}.
+                        // If we want to allow editing typos, we should enable it.
+                        // But if we want to enforce RENIEC data, we keep it disabled.
+                        // For edit mode, maybe we allow editing.
                         {...field}
                       />
                     </FormControl>
@@ -223,7 +271,7 @@ export function CreateClientDialog({
                     <FormControl>
                       <Input
                         placeholder='Se completará al buscar DNI'
-                        disabled={true}
+                        disabled={!isEdit}
                         {...field}
                       />
                     </FormControl>
@@ -281,7 +329,7 @@ export function CreateClientDialog({
                     <Textarea
                       placeholder='Se completará al buscar DNI'
                       className='resize-none'
-                      disabled={true}
+                      disabled={!isEdit} // Allow editing address in edit mode?
                       {...field}
                     />
                   </FormControl>
@@ -295,8 +343,10 @@ export function CreateClientDialog({
                 type='button'
                 variant='outline'
                 onClick={() => {
-                  form.reset()
-                  setDniFound(false)
+                  if (!isEdit) {
+                    form.reset()
+                    setDniFound(false)
+                  }
                   onOpenChange(false)
                 }}
                 disabled={isLoading}
@@ -305,7 +355,7 @@ export function CreateClientDialog({
               </Button>
               <Button type='submit' disabled={isLoading}>
                 {isLoading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-                Crear Cliente
+                {isEdit ? 'Guardar Cambios' : 'Crear Cliente'}
               </Button>
             </DialogFooter>
           </form>

@@ -1,22 +1,12 @@
 'use client'
 
-import { MoreHorizontal } from 'lucide-react'
-
 import { ColumnDef } from '@tanstack/react-table'
 
 import { Cliente } from '@/db/types'
 
-import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
 
+import { ClientActions } from './client-actions'
 import { DataTableColumnHeader } from './data-table-column-header'
 
 export const columns: ColumnDef<Cliente>[] = [
@@ -90,32 +80,6 @@ export const columns: ColumnDef<Cliente>[] = [
   },
   {
     id: 'actions',
-    cell: ({ row }) => {
-      const cliente = row.original
-
-      return (
-        <div className='flex w-full items-center justify-end'>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant='ghost' className='h-8 w-8 p-0'>
-                <span className='sr-only'>Abrir menú</span>
-                <MoreHorizontal className='h-4 w-4' />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align='end'>
-              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(cliente.id)}
-              >
-                Copiar ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-              <DropdownMenuItem>Editar cliente</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )
-    }
+    cell: ({ row }) => <ClientActions client={row.original} />
   }
 ]

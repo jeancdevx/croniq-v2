@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import {
   Banknote,
@@ -26,6 +26,8 @@ import * as z from 'zod'
 
 import { Cliente, Cuota, Prestamo } from '@/db/types'
 import { cn } from '@/lib/utils'
+
+import { getSesionActual } from '@/modules/caja/server'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -109,10 +111,10 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
 
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingLoans, setIsLoadingLoans] = useState(false)
-  const [isLoadingInstallments, setIsLoadingInstallments] = useState(false)
   const [loans, setLoans] = useState<Prestamo[]>([])
   const [installments, setInstallments] = useState<Cuota[]>([])
   const [open, setOpen] = useState(false)
+  const [isSessionOpen, setIsSessionOpen] = useState<boolean | null>(null)
   const [generatedLink, setGeneratedLink] = useState<{
     url: string
     clientId: string
@@ -130,6 +132,20 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
       paymentMethod: 'TARJETA' as const
     }
   })
+
+  // Check session status on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const result = await getSesionActual()
+        setIsSessionOpen(!!result.sesionAbierta)
+      } catch (error) {
+        console.error('Error checking session:', error)
+        setIsSessionOpen(false)
+      }
+    }
+    checkSession()
+  }, [])
 
   // Watchers
   const selectedClientId = form.watch('clientId')
@@ -196,7 +212,7 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
         return
       }
 
-      setIsLoadingInstallments(true)
+      // setIsLoadingInstallments(true)
       try {
         const fetchedInstallments =
           await getInstallmentsByLoanId(selectedLoanId)
@@ -205,7 +221,7 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
         console.error('Error fetching installments:', error)
         toast.error('Error al cargar las cuotas')
       } finally {
-        setIsLoadingInstallments(false)
+        // setIsLoadingInstallments(false)
       }
     }
 
@@ -342,18 +358,21 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
     }
   }
 
-  const handleSelectInstallment = (installment: Cuota) => {
-    const pendingAmount = Number(
-      installment.saldoPendiente ?? installment.totalConSeguro
-    )
-    form.setValue('baseAmount', pendingAmount)
-    form.setValue(
-      'concept',
-      `Pago Cuota #${installment.numeroCuota} - Vence ${new Date(
-        installment.fechaVencimiento
-      ).toLocaleDateString()}`
-    )
-  }
+  const handleSelectInstallment = useCallback(
+    (installment: Cuota) => {
+      const pendingAmount = Number(
+        installment.saldoPendiente ?? installment.totalConSeguro
+      )
+      form.setValue('baseAmount', pendingAmount)
+      form.setValue(
+        'concept',
+        `Pago Cuota #${installment.numeroCuota} - Vence ${new Date(
+          installment.fechaVencimiento
+        ).toLocaleDateString()}`
+      )
+    },
+    [form]
+  )
 
   // Auto-select next installment
   useEffect(() => {
@@ -363,7 +382,7 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
         handleSelectInstallment(nextInstallment)
       }
     }
-  }, [installments, paymentMode])
+  }, [installments, paymentMode, handleSelectInstallment])
 
   if (generatedLink) {
     return (
@@ -733,7 +752,27 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
                   </TabsList>
 
                   <TabsContent value='EFECTIVO' className='space-y-4 pt-4'>
-                    <div className='bg-muted/50 space-y-4 rounded-lg border p-4'>
+                    {isSessionOpen === false && (
+                      <div className='bg-destructive/10 text-destructive flex flex-col gap-2 rounded-lg border border-red-200 p-4 text-sm'>
+                        <div className='flex items-center gap-2 font-bold'>
+                          <span className='h-2 w-2 rounded-full bg-red-500' />
+                          Caja Cerrada
+                        </div>
+                        <p>
+                          No se pueden registrar pagos en efectivo porque la
+                          caja está cerrada. Por favor, abra una nueva sesión de
+                          caja.
+                        </p>
+                      </div>
+                    )}
+
+                    <div
+                      className={cn(
+                        'bg-muted/50 space-y-4 rounded-lg border p-4',
+                        isSessionOpen === false &&
+                          'pointer-events-none opacity-50'
+                      )}
+                    >
                       <div className='space-y-2'>
                         <label className='text-sm font-medium'>
                           Monto Recibido (Efectivo)
@@ -828,7 +867,8 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
                   isLoading ||
                   isLoadingLoans ||
                   loans.length === 0 ||
-                  (paymentType === 'EFECTIVO' && !canProcessCash)
+                  (paymentType === 'EFECTIVO' && !canProcessCash) ||
+                  (paymentType === 'EFECTIVO' && isSessionOpen === false)
                 }
               >
                 {isLoading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
