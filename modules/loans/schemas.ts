@@ -5,7 +5,7 @@ export const createLoanSchema = z.object({
   montoSolicitado: z
     .number()
     .positive('El monto debe ser mayor a 0')
-    .min(100, 'El monto mínimo es S/ 100')
+    .min(5, 'El monto mínimo es S/ 5')
     .max(1000000, 'El monto máximo es S/ 1,000,000'),
   tea: z
     .number()

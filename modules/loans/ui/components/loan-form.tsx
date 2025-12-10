@@ -184,7 +184,7 @@ export function LoanForm() {
                       </div>
                     </FormControl>
                     <FormDescription>
-                      Monto entre S/ 100 y S/ 1,000,000
+                      Monto entre S/ 5 y S/ 1,000,000
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
