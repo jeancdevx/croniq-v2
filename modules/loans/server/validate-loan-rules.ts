@@ -39,10 +39,10 @@ export async function validateLoanRules(
   }
 
   // 2. Validar monto mínimo
-  if (montoSolicitado < 100) {
+  if (montoSolicitado < 5) {
     return {
       valid: false,
-      error: 'El monto mínimo del préstamo es S/ 100'
+      error: 'El monto mínimo del préstamo es S/ 5'
     }
   }
 
