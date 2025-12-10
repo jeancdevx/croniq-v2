@@ -219,7 +219,10 @@ export function PaymentsForm() {
 
   const pendingInstallments = installments.filter(i => i.estado !== 'PAGADO')
   const totalDebt = pendingInstallments.reduce(
-    (sum, i) => sum + Number(i.saldoPendiente ?? i.totalConSeguro),
+    (sum, i) =>
+      sum +
+      Number(i.saldoPendiente ?? i.totalConSeguro) +
+      Number(i.montoMora || 0),
     0
   )
 
@@ -325,11 +328,15 @@ export function PaymentsForm() {
       const pendingAmount = Number(
         installment.saldoPendiente ?? installment.totalConSeguro
       )
-      form.setValue('baseAmount', pendingAmount)
+      const moraAmount = Number(installment.montoMora || 0)
+      const totalWithMora = pendingAmount + moraAmount
+      form.setValue('baseAmount', totalWithMora)
+      const moraNote =
+        moraAmount > 0 ? ` + Mora S/ ${moraAmount.toFixed(2)}` : ''
       form.setValue(
         'concept',
-        `Pago Cuota #${installment.numeroCuota} - Vence ${new Date(
-          installment.fechaVencimiento
+        `Pago Cuota #${installment.numeroCuota}${moraNote} - Vence ${new Date(
+          installment.fechaVencimiento + 'T12:00:00'
         ).toLocaleDateString()}`
       )
     },
@@ -639,15 +646,53 @@ export function PaymentsForm() {
                     <div className='space-y-2'>
                       <Label>Cuota a Pagar (Siguiente Cuota Pendiente)</Label>
                       <div className='bg-muted rounded-md border p-3 text-sm font-medium'>
-                        Cuota #{pendingInstallments[0].numeroCuota} - Vence{' '}
-                        {new Date(
-                          pendingInstallments[0].fechaVencimiento
-                        ).toLocaleDateString()}{' '}
-                        - S/{' '}
-                        {Number(
-                          pendingInstallments[0].saldoPendiente ??
-                            pendingInstallments[0].totalConSeguro
-                        ).toFixed(2)}
+                        <div className='flex items-center justify-between'>
+                          <span>
+                            Cuota #{pendingInstallments[0].numeroCuota} - Vence{' '}
+                            {new Date(
+                              pendingInstallments[0].fechaVencimiento +
+                                'T12:00:00'
+                            ).toLocaleDateString()}
+                          </span>
+                          <span
+                            className={
+                              Number(pendingInstallments[0].montoMora || 0) > 0
+                                ? 'font-bold text-red-600'
+                                : ''
+                            }
+                          >
+                            S/{' '}
+                            {(
+                              Number(
+                                pendingInstallments[0].saldoPendiente ??
+                                  pendingInstallments[0].totalConSeguro
+                              ) + Number(pendingInstallments[0].montoMora || 0)
+                            ).toFixed(2)}
+                          </span>
+                        </div>
+                        {Number(pendingInstallments[0].montoMora || 0) > 0 && (
+                          <div className='mt-2 border-t pt-2 text-xs text-red-600'>
+                            <div className='flex justify-between'>
+                              <span>Cuota pendiente:</span>
+                              <span>
+                                S/{' '}
+                                {Number(
+                                  pendingInstallments[0].saldoPendiente ??
+                                    pendingInstallments[0].totalConSeguro
+                                ).toFixed(2)}
+                              </span>
+                            </div>
+                            <div className='flex justify-between font-bold'>
+                              <span>Mora acumulada:</span>
+                              <span>
+                                S/{' '}
+                                {Number(
+                                  pendingInstallments[0].montoMora
+                                ).toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

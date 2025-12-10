@@ -72,11 +72,54 @@ export const calculateDisbursementFee = (
 }
 
 /**
- * Calcula TCEA usando días reales / 360 (método BBVA/SBS Perú)
+ * Calcula TCEA usando períodos mensuales (modelo académico)
+ *
+ * La TCEA es la tasa anual que iguala el monto desembolsado
+ * con la serie de cuotas mensuales iguales.
  *
  * @param montoDesembolsado - Monto que recibe el cliente
- * @param cuotas - Array de objetos {monto, diasDesdeDesembolso}
+ * @param cuotaMensual - Cuota total fija mensual
+ * @param numeroCuotas - Número de cuotas
  * @returns TCEA anual (decimal)
+ */
+export const calculateTCEAMonthly = (
+  montoDesembolsado: number,
+  cuotaMensual: number,
+  numeroCuotas: number
+): number => {
+  // Encontrar TIR mensual usando Newton-Raphson
+  // VPN = -monto + cuota × (1 - (1+r)^(-n)) / r = 0
+
+  let rm = 0.02 // Estimación inicial: 2% mensual
+  const epsilon = 0.000001
+  const maxIterations = 100
+
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    const factor = Math.pow(1 + rm, -numeroCuotas)
+    const vpn = -montoDesembolsado + (cuotaMensual * (1 - factor)) / rm
+
+    // Derivada del VPN respecto a rm
+    const derivada =
+      cuotaMensual *
+      ((numeroCuotas * factor) / (rm * (1 + rm)) - (1 - factor) / (rm * rm))
+
+    const rmNueva = rm - vpn / derivada
+
+    if (Math.abs(rmNueva - rm) < epsilon) {
+      // Convertir TIR mensual a TCEA anual
+      return Math.pow(1 + rmNueva, 12) - 1
+    }
+
+    rm = rmNueva
+  }
+
+  // Si no converge, retornar estimación
+  return Math.pow(1 + rm, 12) - 1
+}
+
+/**
+ * Calcula TCEA usando días reales / 360 (método BBVA/SBS Perú)
+ * DEPRECATED: Usar calculateTCEAMonthly para modelo académico
  */
 export const calculateTCEAWithDays = (
   montoDesembolsado: number,
@@ -110,46 +153,6 @@ export const calculateTCEAWithDays = (
   }
 
   return tcea
-}
-
-/**
- * Calcula TCEA usando períodos mensuales (método simplificado)
- * DEPRECATED: Usar calculateTCEAWithDays para cálculos precisos
- */
-export const calculateTCEA = (
-  montoDesembolsado: number,
-  cuotas: number[], // Array de cuotas mensuales
-  plazo: number
-): number => {
-  // Método de Newton-Raphson para encontrar la TIR
-  let tir = 0.02 // Estimación inicial: 2% mensual
-  const epsilon = 0.000001
-  const maxIterations = 100
-
-  for (let iteration = 0; iteration < maxIterations; iteration++) {
-    // VPN = -montoDesembolsado + sum(cuota[i] / (1+r)^i)
-    let vpn = -montoDesembolsado
-    let derivada = 0
-
-    for (let i = 1; i <= plazo; i++) {
-      const cuota = cuotas[i - 1] || cuotas[0] // Usar cuota específica o primera si no existe
-      const factor = Math.pow(1 + tir, i)
-      vpn += cuota / factor
-      derivada -= (i * cuota) / (factor * (1 + tir))
-    }
-
-    const tirNueva = tir - vpn / derivada
-
-    if (Math.abs(tirNueva - tir) < epsilon) {
-      // Convertir TIR mensual a anual
-      return Math.pow(1 + tirNueva, 12) - 1
-    }
-
-    tir = tirNueva
-  }
-
-  // Si no converge, retornar estimación
-  return Math.pow(1 + tir, 12) - 1
 }
 
 export const roundToTwo = (num: number): number => {

@@ -186,6 +186,7 @@ export function LoanDetailActiveView({ loan }: LoanDetailActiveViewProps) {
                 <TableHead>Total Cuota</TableHead>
                 <TableHead>Pagado</TableHead>
                 <TableHead>Pendiente</TableHead>
+                <TableHead className='text-destructive'>Mora</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
@@ -196,9 +197,11 @@ export function LoanDetailActiveView({ loan }: LoanDetailActiveViewProps) {
                     {cuota.numeroCuota}
                   </TableCell>
                   <TableCell>
-                    {format(new Date(cuota.fechaVencimiento), 'dd MMM yyyy', {
-                      locale: es
-                    })}
+                    {format(
+                      new Date(cuota.fechaVencimiento + 'T12:00:00'),
+                      'dd MMM yyyy',
+                      { locale: es }
+                    )}
                   </TableCell>
                   <TableCell>{formatCurrency(cuota.capital)}</TableCell>
                   <TableCell>{formatCurrency(cuota.interes)}</TableCell>
@@ -213,6 +216,11 @@ export function LoanDetailActiveView({ loan }: LoanDetailActiveViewProps) {
                   </TableCell>
                   <TableCell>
                     {formatCurrency(cuota.saldoPendiente || 0)}
+                  </TableCell>
+                  <TableCell className='text-destructive font-medium'>
+                    {Number(cuota.montoMora || 0) > 0
+                      ? formatCurrency(cuota.montoMora)
+                      : '-'}
                   </TableCell>
                   <TableCell>
                     <Badge

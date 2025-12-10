@@ -69,8 +69,9 @@ export function LoanForm() {
 
   useEffect(() => {
     if (fechaDesembolso) {
-      const fecha = new Date(fechaDesembolso)
-      fecha.setMonth(fecha.getMonth() + 1)
+      // IMPORTANTE: Agregar T12:00:00 para evitar que JavaScript interprete como UTC midnight
+      // lo cual restaría un día en Perú (UTC-5)
+      const fecha = new Date(fechaDesembolso + 'T12:00:00')
       const diaVencimiento = fecha.getDate()
       form.setValue('diaVencimiento', diaVencimiento)
     }
@@ -318,7 +319,7 @@ export function LoanForm() {
                           disabled={isLoading}
                         >
                           {field.value ? (
-                            format(new Date(field.value + 'T00:00:00'), 'PPP', {
+                            format(new Date(field.value + 'T12:00:00'), 'PPP', {
                               locale: es
                             })
                           ) : (
@@ -333,7 +334,7 @@ export function LoanForm() {
                         mode='single'
                         selected={
                           field.value
-                            ? new Date(field.value + 'T00:00:00')
+                            ? new Date(field.value + 'T12:00:00')
                             : undefined
                         }
                         onSelect={date => {
@@ -351,10 +352,10 @@ export function LoanForm() {
                         }}
                         disabled={date => {
                           const today = new Date()
-                          today.setHours(0, 0, 0, 0)
-                          const maxDate = new Date()
-                          maxDate.setDate(maxDate.getDate() + 45)
-                          return date < today || date > maxDate
+                          today.setHours(23, 59, 59, 999) // Fin del día de hoy
+                          // Solo bloquear fechas FUTURAS (no pasadas)
+                          // Esto permite crear préstamos en el pasado para testing de moras
+                          return date > today
                         }}
                         initialFocus
                         locale={es}

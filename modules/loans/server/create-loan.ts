@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { format } from 'date-fns'
+
 import { getDb } from '@/db'
 import { cuota, prestamo } from '@/db/schema'
 
@@ -10,7 +12,7 @@ import {
   generateAmortizationSchedule
 } from '../lib/amortization'
 import {
-  calculateTCEAWithDays,
+  calculateTCEAMonthly,
   calculateTEM,
   roundToFour,
   roundToSix,
@@ -18,20 +20,6 @@ import {
 } from '../lib/financial-calcs'
 import { createLoanSchema } from '../schemas'
 import { validateLoanRules } from './validate-loan-rules'
-
-/**
- * Helper: Calcula días entre dos fechas
- */
-const daysBetween = (start: Date, end: Date): number => {
-  const MS_PER_DAY = 1000 * 60 * 60 * 24
-  const startUTC = Date.UTC(
-    start.getFullYear(),
-    start.getMonth(),
-    start.getDate()
-  )
-  const endUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate())
-  return Math.floor((endUTC - startUTC) / MS_PER_DAY)
-}
 
 interface CreateLoanResult {
   success: boolean
@@ -84,9 +72,12 @@ export async function createLoan(
     // 5. Sistema solo trabaja en SOLES (PEN)
     // No hay tipo de cambio ni conversión de moneda
 
-    // 6. Generar cronograma EN LA MONEDA DEL PRÉSTAMO (USD)
-    // La deuda "vive" en USD, el sistema francés opera en USD
-    const fechaDesembolso = new Date(validatedData.fechaDesembolso)
+    // 6. Generar cronograma EN SOLES
+    // IMPORTANTE: Agregar T12:00:00 para evitar que JavaScript interprete como UTC midnight
+    // lo cual restaría un día en Perú (UTC-5)
+    const fechaDesembolso = new Date(
+      validatedData.fechaDesembolso + 'T12:00:00'
+    )
     const fechaPrimerVencimiento = calculateFirstDueDate(
       fechaDesembolso,
       validatedData.diaVencimiento
@@ -106,15 +97,15 @@ export async function createLoan(
       cronograma.reduce((sum, c) => sum + c.totalConSeguro, 0)
     )
 
-    // 9. Calcular TCEA EN LA MONEDA DEL PRÉSTAMO usando días reales
-    // TCEA compara lo que RECIBES vs lo que PAGAS usando días/360
-    const cuotasConDias = cronograma.map(c => ({
-      monto: c.totalConSeguro,
-      dias: daysBetween(fechaDesembolso, c.fechaVencimiento)
-    }))
-
+    // 8. Calcular TCEA usando modelo académico (períodos mensuales)
+    // Cuota mensual fija × n cuotas (todas las cuotas son iguales)
+    const cuotaMensual = cronograma[0].totalConSeguro
     const tcea = roundToFour(
-      calculateTCEAWithDays(montoDesembolsado, cuotasConDias)
+      calculateTCEAMonthly(
+        montoDesembolsado,
+        cuotaMensual,
+        validatedData.numeroCuotas
+      )
     )
 
     // 8. Insertar préstamo en la base de datos
@@ -140,9 +131,7 @@ export async function createLoan(
         monedaPago: 'PEN',
         tipoCambioDesembolso: null,
         fechaDesembolso: validatedData.fechaDesembolso,
-        fechaPrimerVencimiento: fechaPrimerVencimiento
-          .toISOString()
-          .split('T')[0],
+        fechaPrimerVencimiento: format(fechaPrimerVencimiento, 'yyyy-MM-dd'),
         diaVencimiento: validatedData.diaVencimiento,
         estado: 'DRAFT'
       })
@@ -152,13 +141,17 @@ export async function createLoan(
     const cuotasToInsert = cronograma.map(c => ({
       prestamoId: newLoan.id,
       numeroCuota: c.numeroCuota,
-      fechaVencimiento: c.fechaVencimiento.toISOString().split('T')[0],
+      fechaVencimiento: format(c.fechaVencimiento, 'yyyy-MM-dd'),
       capital: c.capital.toString(),
       interes: c.interes.toString(),
       totalCuota: c.totalCuota.toString(),
       seguroDesgravamen: c.seguroDesgravamen.toString(),
       totalConSeguro: c.totalConSeguro.toString(),
       saldoRestante: c.saldoRestante.toString(),
+      saldoPendiente: c.totalConSeguro.toString(), // Inicializar pendiente = total
+      montoPagado: '0.00',
+      montoMora: '0.00',
+      diasMora: 0,
       estado: 'PENDIENTE'
     }))
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { format } from 'date-fns'
 import { eq } from 'drizzle-orm'
 
 import { getDb } from '@/db'
@@ -12,27 +13,13 @@ import {
   generateAmortizationSchedule
 } from '../lib/amortization'
 import {
-  calculateTCEAWithDays,
+  calculateTCEAMonthly,
   calculateTEM,
   roundToFour,
   roundToSix,
   roundToTwo
 } from '../lib/financial-calcs'
 import { updateLoanSchema } from '../schemas'
-
-/**
- * Helper: Calcula días entre dos fechas
- */
-const daysBetween = (start: Date, end: Date): number => {
-  const MS_PER_DAY = 1000 * 60 * 60 * 24
-  const startUTC = Date.UTC(
-    start.getFullYear(),
-    start.getMonth(),
-    start.getDate()
-  )
-  const endUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate())
-  return Math.floor((endUTC - startUTC) / MS_PER_DAY)
-}
 
 interface UpdateLoanResult {
   success: boolean
@@ -81,7 +68,10 @@ export async function updateLoan(
     const validatedData = updateLoanSchema.parse(rawData)
 
     // Calcular día de vencimiento automáticamente desde la fecha de desembolso
-    const fechaDesembolso = new Date(validatedData.fechaDesembolso)
+    // IMPORTANTE: Agregar T12:00:00 para evitar que JavaScript interprete como UTC midnight
+    const fechaDesembolso = new Date(
+      validatedData.fechaDesembolso + 'T12:00:00'
+    )
     const diaVencimiento = fechaDesembolso.getDate()
 
     // 3. Calcular valores financieros (usar datos del préstamo original)
@@ -95,7 +85,7 @@ export async function updateLoan(
     // 5. Sistema solo trabaja en SOLES (PEN)
     // No hay tipo de cambio ni conversión de moneda
 
-    // 6. Generar nuevo cronograma EN LA MONEDA DEL PRÉSTAMO
+    // 6. Generar nuevo cronograma EN SOLES
     const fechaPrimerVencimiento = calculateFirstDueDate(
       fechaDesembolso,
       diaVencimiento
@@ -110,20 +100,19 @@ export async function updateLoan(
       tasaSeguroDesgravamen: 0.0018
     })
 
-    // 7. Calcular totales
     // 7. Calcular totales EN SOLES (PEN)
     const totalAPagar = roundToTwo(
       cronograma.reduce((sum, c) => sum + c.totalConSeguro, 0)
     )
 
-    // 8. Calcular TCEA usando días reales
-    const cuotasConDias = cronograma.map(c => ({
-      monto: c.totalConSeguro,
-      dias: daysBetween(fechaDesembolso, c.fechaVencimiento)
-    }))
-
+    // 8. Calcular TCEA usando modelo académico (períodos mensuales)
+    const cuotaMensual = cronograma[0].totalConSeguro
     const tcea = roundToFour(
-      calculateTCEAWithDays(montoDesembolsado, cuotasConDias)
+      calculateTCEAMonthly(
+        montoDesembolsado,
+        cuotaMensual,
+        validatedData.numeroCuotas
+      )
     )
 
     // 9. Actualizar préstamo
@@ -134,9 +123,7 @@ export async function updateLoan(
         monedaPago: 'PEN',
         tipoCambioDesembolso: null,
         fechaDesembolso: validatedData.fechaDesembolso,
-        fechaPrimerVencimiento: fechaPrimerVencimiento
-          .toISOString()
-          .split('T')[0],
+        fechaPrimerVencimiento: format(fechaPrimerVencimiento, 'yyyy-MM-dd'),
         diaVencimiento: diaVencimiento,
         totalAPagar: totalAPagar.toString(),
         tem: tem.toString(),
@@ -151,13 +138,17 @@ export async function updateLoan(
     const cuotasToInsert = cronograma.map(c => ({
       prestamoId: prestamoId,
       numeroCuota: c.numeroCuota,
-      fechaVencimiento: c.fechaVencimiento.toISOString().split('T')[0],
+      fechaVencimiento: format(c.fechaVencimiento, 'yyyy-MM-dd'),
       capital: c.capital.toString(),
       interes: c.interes.toString(),
       totalCuota: c.totalCuota.toString(),
       seguroDesgravamen: c.seguroDesgravamen.toString(),
       totalConSeguro: c.totalConSeguro.toString(),
       saldoRestante: c.saldoRestante.toString(),
+      saldoPendiente: c.totalConSeguro.toString(), // Inicializar pendiente = total
+      montoPagado: '0.00',
+      montoMora: '0.00',
+      diasMora: 0,
       estado: 'PENDIENTE'
     }))
 

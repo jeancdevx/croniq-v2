@@ -90,7 +90,9 @@ export const columns: ColumnDef<PrestamoConCuotas>[] = [
     ),
     cell: ({ row }) => {
       const fecha = row.getValue('fechaDesembolso') as string
-      return <div>{format(parseISO(fecha), 'dd/MM/yyyy')}</div>
+      // Agregar T12:00:00 para evitar que parseISO interprete como UTC midnight
+      const fechaWithTime = fecha.includes('T') ? fecha : fecha + 'T12:00:00'
+      return <div>{format(parseISO(fechaWithTime), 'dd/MM/yyyy')}</div>
     }
   },
   {
