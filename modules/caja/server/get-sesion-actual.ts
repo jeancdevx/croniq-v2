@@ -50,12 +50,41 @@ export async function getSesionActual() {
       .filter(m => m.tipo === 'INGRESO' && m.categoria === 'PAGO_EFECTIVO')
       .reduce((sum, m) => sum + Number(m.monto), 0)
 
-    const ingresosFlow = movimientos
-      .filter(m => m.tipo === 'INGRESO' && m.categoria === 'PAGO_FLOW')
+    const ingresosTarjeta = movimientos
+      .filter(m => m.tipo === 'INGRESO' && m.categoria === 'PAGO_TARJETA')
       .reduce((sum, m) => sum + Number(m.monto), 0)
 
+    const inyeccionesEfectivo = movimientos
+      .filter(m => m.categoria === 'INYECCION_EFECTIVO')
+      .reduce((sum, m) => sum + Number(m.monto), 0)
+
+    // 5. Calcular efectivo físico disponible (para dar vueltos)
+    const ingresosEfectivoFisico = movimientos
+      .filter(
+        m =>
+          m.tipo === 'INGRESO' &&
+          ['CAPITAL_INICIAL', 'PAGO_EFECTIVO', 'INYECCION_EFECTIVO'].includes(
+            m.categoria
+          )
+      )
+      .reduce((sum, m) => sum + Number(m.monto), 0)
+
+    const egresosEfectivoFisico = movimientos
+      .filter(
+        m =>
+          m.tipo === 'EGRESO' &&
+          ['DESEMBOLSO', 'RETIRO_EFECTIVO'].includes(m.categoria)
+      )
+      .reduce((sum, m) => sum + Number(m.monto), 0)
+
+    const efectivoDisponible =
+      Number(sesionAbierta.saldoInicial) +
+      ingresosEfectivoFisico -
+      egresosEfectivoFisico
+
+    // 6. Calcular comisiones Flow (ahora de PAGO_TARJETA)
     const comisionesFlow = movimientos
-      .filter(m => m.tipo === 'INGRESO' && m.categoria === 'PAGO_FLOW')
+      .filter(m => m.tipo === 'INGRESO' && m.categoria === 'PAGO_TARJETA')
       .reduce((sum, m) => sum + Number(m.comisionFlow || '0'), 0)
 
     return {
@@ -70,7 +99,9 @@ export async function getSesionActual() {
         cantidadMovimientos: movimientos.length,
         desglose: {
           ingresosEfectivo,
-          ingresosFlow,
+          ingresosTarjeta,
+          inyeccionesEfectivo,
+          efectivoDisponible, // ⭐ Importante para validar vueltos
           comisionesFlow
         }
       },
