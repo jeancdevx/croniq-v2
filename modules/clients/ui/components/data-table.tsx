@@ -36,7 +36,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-import { CreateClientDialog } from './create-client-dialog'
+import { ClientFormDialog } from './client-form-dialog'
 import { DataTablePagination } from './data-table-pagination'
 
 interface DataTableProps<TData, TValue> {
@@ -191,7 +191,7 @@ const DataTable = <TData, TValue>({
         <DataTablePagination table={table} />
       </div>
 
-      <CreateClientDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <ClientFormDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   )
 }
