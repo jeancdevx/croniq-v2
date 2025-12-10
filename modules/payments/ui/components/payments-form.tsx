@@ -2,14 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import {
-  Banknote,
-  Check,
-  ChevronsUpDown,
-  CreditCard,
-  Loader2,
-  Send
-} from 'lucide-react'
+import { Banknote, Check, CreditCard, Loader2, Send } from 'lucide-react'
 
 import {
   generatePaymentLink,
@@ -24,10 +17,12 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import * as z from 'zod'
 
-import { Cliente, Cuota, Prestamo } from '@/db/types'
+import { Cuota, Prestamo } from '@/db/types'
 import { cn } from '@/lib/utils'
 
 import { getSesionActual } from '@/modules/caja/server'
+import { getClientById } from '@/modules/clients/server/get-client-by-id'
+import { ClientSearchCombobox } from '@/modules/clients/ui/client-search-combobox'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -37,14 +32,6 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList
-} from '@/components/ui/command'
 import {
   Form,
   FormControl,
@@ -56,11 +43,6 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from '@/components/ui/popover'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
@@ -91,16 +73,12 @@ const formSchema = z.object({
   })
 })
 
-interface PaymentsFormProps {
-  clients?: Cliente[]
-}
-
 const COMMISSIONS = {
   FLOW: { fixed: 0 }, // Sin comisión - asumida por la empresa
   EFECTIVO: { fixed: 0 }
 }
 
-export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
+export function PaymentsForm() {
   const [paymentType, setPaymentType] = useState<'EFECTIVO' | 'FLOW'>(
     'EFECTIVO'
   )
@@ -113,7 +91,6 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
   const [isLoadingLoans, setIsLoadingLoans] = useState(false)
   const [loans, setLoans] = useState<Prestamo[]>([])
   const [installments, setInstallments] = useState<Cuota[]>([])
-  const [open, setOpen] = useState(false)
   const [isSessionOpen, setIsSessionOpen] = useState<boolean | null>(null)
   const [generatedLink, setGeneratedLink] = useState<{
     url: string
@@ -249,18 +226,22 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
       return
     }
 
-    const selectedClient = clients.find(client => client.id === values.clientId)
-
-    if (!selectedClient) {
-      toast.error('Cliente no encontrado')
-      return
-    }
+    // Client validation is handled by the search component
 
     setIsLoading(true)
 
     try {
       if (paymentType === 'FLOW') {
-        if (!selectedClient.email) {
+        // Fetch client data to get email
+        const clientData = await getClientById(values.clientId)
+
+        if (!clientData) {
+          toast.error('No se pudo obtener la información del cliente')
+          setIsLoading(false)
+          return
+        }
+
+        if (!clientData.email) {
           toast.error('El cliente seleccionado no tiene un email registrado')
           setIsLoading(false)
           return
@@ -269,11 +250,11 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
         const { total } = calculateTotal(values.baseAmount, 'FLOW')
 
         const result = await generatePaymentLink({
-          email: selectedClient.email,
+          email: clientData.email,
           amount: Number(total.toFixed(2)), // Monto total con comisión
           baseAmount: values.baseAmount, // Monto base a descontar
           concept: values.concept,
-          clientId: selectedClient.id,
+          clientId: values.clientId,
           loanId: values.loanId
         })
 
@@ -281,7 +262,7 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
           toast.success('Link de pago generado exitosamente')
           setGeneratedLink({
             url: result.url,
-            clientId: selectedClient.id,
+            clientId: values.clientId,
             concept: values.concept,
             amount: Number(total.toFixed(2))
           })
@@ -468,65 +449,13 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
                   render={({ field }) => (
                     <FormItem className='flex flex-col'>
                       <FormLabel>Cliente *</FormLabel>
-                      <Popover open={open} onOpenChange={setOpen}>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant='outline'
-                              role='combobox'
-                              aria-expanded={open}
-                              className={cn(
-                                'w-full justify-between',
-                                !field.value && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value
-                                ? clients.find(
-                                    client => client.id === field.value
-                                  )?.nombres +
-                                  ' ' +
-                                  clients.find(
-                                    client => client.id === field.value
-                                  )?.apellidos
-                                : 'Seleccionar cliente...'}
-                              <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className='w-full p-0'>
-                          <Command>
-                            <CommandInput placeholder='Buscar cliente...' />
-                            <CommandList>
-                              <CommandEmpty>
-                                No se encontraron clientes.
-                              </CommandEmpty>
-                              <CommandGroup>
-                                {clients.map(client => (
-                                  <CommandItem
-                                    value={`${client.nombres} ${client.apellidos}`}
-                                    key={client.id}
-                                    onSelect={() => {
-                                      form.setValue('clientId', client.id)
-                                      setOpen(false)
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        'mr-2 h-4 w-4',
-                                        client.id === field.value
-                                          ? 'opacity-100'
-                                          : 'opacity-0'
-                                      )}
-                                    />
-                                    {client.nombres} {client.apellidos}
-                                    {client.dni && ` - ${client.dni}`}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                        <ClientSearchCombobox
+                          value={field.value}
+                          onSelect={value => field.onChange(value)}
+                          placeholder='Seleccionar cliente...'
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
