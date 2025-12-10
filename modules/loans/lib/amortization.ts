@@ -1,11 +1,6 @@
-import { adjustToNextBusinessDay } from './business-days'
-import {
-  calculateFrenchInstallment,
-  calculateInsurance,
-  calculateInterestForPeriod,
-  calculateTEM,
-  roundToTwo
-} from './financial-calcs'
+import { addMonths, getDaysInMonth, setDate } from 'date-fns'
+
+import { calculateTEM, roundToTwo } from './financial-calcs'
 
 export interface AmortizationParams {
   montoSolicitado: number
@@ -28,52 +23,27 @@ export interface Installment {
 }
 
 /**
- * Calcula días entre dos fechas
- */
-const daysBetween = (start: Date, end: Date): number => {
-  const MS_PER_DAY = 1000 * 60 * 60 * 24
-  const startUTC = Date.UTC(
-    start.getFullYear(),
-    start.getMonth(),
-    start.getDate()
-  )
-  const endUTC = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate())
-  return Math.floor((endUTC - startUTC) / MS_PER_DAY)
-}
-
-/**
- * Calcula fecha de vencimiento según Código Civil Peruano Art. 183:
- * - Si el día existe en el mes: usa ese día
- * - Si no existe (ej: 31 feb): usa el último día del mes
+ * Calcula fecha de vencimiento usando meses exactos (modelo académico)
+ * - Si el día no existe en el mes, usa el último día del mes
+ * - NO ajusta por días hábiles (fechas exactas como el profesor pide)
+ * - Usa date-fns para evitar problemas de timezone
  */
 export const calculateDueDate = (
   fechaDesembolso: Date,
   numeroCuota: number,
   diaVencimiento: number
 ): Date => {
-  const year = fechaDesembolso.getFullYear()
-  const month = fechaDesembolso.getMonth()
+  // Primero sumamos los meses usando date-fns
+  const targetDate = addMonths(fechaDesembolso, numeroCuota)
 
-  // Calcular el mes objetivo
-  const targetMonth = month + numeroCuota
-  const targetYear = year + Math.floor(targetMonth / 12)
-  const finalMonth = targetMonth % 12
-
-  // Crear fecha con el mes y año correctos, día 1
-  const fecha = new Date(targetYear, finalMonth, 1)
-
-  // Obtener el último día del mes
-  const lastDayOfMonth = new Date(targetYear, finalMonth + 1, 0).getDate()
+  // Obtener último día del mes objetivo
+  const lastDayOfMonth = getDaysInMonth(targetDate)
 
   // Usar el día de vencimiento o el último día del mes si no existe
   const finalDay = Math.min(diaVencimiento, lastDayOfMonth)
 
-  fecha.setDate(finalDay)
-
-  // IMPORTANTE: Ajustar a siguiente día hábil si cae en fin de semana/feriado
-  const fechaAjustada = adjustToNextBusinessDay(fecha)
-
-  return fechaAjustada
+  // Establecer el día correcto
+  return setDate(targetDate, finalDay)
 }
 
 export const calculateFirstDueDate = (
@@ -84,12 +54,29 @@ export const calculateFirstDueDate = (
 }
 
 /**
- * Genera cronograma EXACTO según BBVA/SBS Perú:
- * - CUOTA TOTAL FIJA = Capital + Interés + Seguro
- * - Capital CRECE (compensa interés decreciente)
- * - Interés DECRECE (calculado con días reales)
- * - Seguro DECRECE (sobre saldo decreciente, con días reales)
- * - Saldo llega a exactamente 0
+ * Calcula cuota total fija usando tasa combinada (interés + seguro)
+ *
+ * Fórmula: Q = P × i_total / (1 - (1 + i_total)^(-n))
+ *
+ * Donde i_total = TEM + tasa_seguro
+ */
+const calculateFixedTotalInstallment = (
+  monto: number,
+  tem: number,
+  tasaSeguro: number,
+  numeroCuotas: number
+): number => {
+  const iTotalMensual = tem + tasaSeguro
+  const factor = Math.pow(1 + iTotalMensual, numeroCuotas)
+  return (monto * (iTotalMensual * factor)) / (factor - 1)
+}
+
+/**
+ * Genera cronograma usando modelo ACADÉMICO:
+ * - Períodos mensuales iguales (no días reales)
+ * - Cuota TOTAL constante (capital + interés + seguro)
+ * - Tasa combinada: i_total = TEM + seguro
+ * - Saldo llega exactamente a 0
  */
 export const generateAmortizationSchedule = (
   params: AmortizationParams
@@ -100,68 +87,50 @@ export const generateAmortizationSchedule = (
     numeroCuotas,
     fechaDesembolso,
     diaVencimiento,
-    tasaSeguroDesgravamen = 0.0018
+    tasaSeguroDesgravamen = 0.0018 // 0.18% mensual
   } = params
 
-  // 1. TEM promedio (base 30 días) para calcular cuota de referencia
+  // 1. Calcular TEM (tasa efectiva mensual de interés puro)
   const tem = calculateTEM(tea)
 
-  // 2. Cuota base sin seguro
-  const cuotaBaseSinSeguro = calculateFrenchInstallment(
+  // 2. Calcular cuota total fija usando tasa combinada
+  // i_total = TEM + seguro
+  const cuotaTotalFija = calculateFixedTotalInstallment(
     montoSolicitado,
     tem,
+    tasaSeguroDesgravamen,
     numeroCuotas
   )
 
-  // 3. Estimar seguro promedio para obtener cuota total fija
-  const saldoPromedio = montoSolicitado / 2
-  const seguroPromedio = saldoPromedio * tasaSeguroDesgravamen
-
-  // 4. CUOTA TOTAL FIJA (incluye seguro estimado)
-  const cuotaTotalFija = cuotaBaseSinSeguro + seguroPromedio
-
   const cuotas: Installment[] = []
   let saldoPendiente = montoSolicitado
-  let fechaAnterior = fechaDesembolso
 
-  // 5. Generar cronograma manteniendo CUOTA TOTAL FIJA
+  // 3. Generar cronograma
   for (let i = 1; i <= numeroCuotas; i++) {
-    // Fecha de vencimiento (ajustada a día hábil)
+    // Fecha de vencimiento (meses exactos, sin ajuste días hábiles)
     const fechaVencimiento = calculateDueDate(
       fechaDesembolso,
       i,
       diaVencimiento
     )
 
-    // Días reales entre pagos
-    const diasReales = daysBetween(fechaAnterior, fechaVencimiento)
+    // Interés del período = saldo × TEM
+    const interes = saldoPendiente * tem
 
-    // Interés con días reales sobre saldo actual
-    const interes = calculateInterestForPeriod(saldoPendiente, tea, diasReales)
+    // Seguro del período = saldo × tasa_seguro
+    const seguro = saldoPendiente * tasaSeguroDesgravamen
 
-    // Seguro con días reales sobre saldo actual
-    const seguro = calculateInsurance(
-      saldoPendiente,
-      tasaSeguroDesgravamen,
-      diasReales
-    )
-
-    // CLAVE: Capital se AJUSTA para mantener cuota total fija
-    // Capital = CuotaFija - Interés - Seguro
-    // Como interés y seguro DECRECEN, capital CRECE
+    // Capital = cuota_total - interés - seguro
     let capital = cuotaTotalFija - interes - seguro
 
-    // Última cuota: ajustar para saldar exactamente
+    // Última cuota: ajustar capital para saldar exactamente
     if (i === numeroCuotas) {
       capital = saldoPendiente
     }
 
-    // Validación
+    // Protección contra negativos por redondeo
     if (capital < 0) {
       capital = 0
-    }
-    if (capital > saldoPendiente) {
-      capital = saldoPendiente
     }
 
     // Actualizar saldo
@@ -181,8 +150,6 @@ export const generateAmortizationSchedule = (
       totalConSeguro: roundToTwo(totalConSeguro),
       saldoRestante: roundToTwo(saldoPendiente)
     })
-
-    fechaAnterior = fechaVencimiento
   }
 
   return cuotas
