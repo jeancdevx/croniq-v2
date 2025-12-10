@@ -17,12 +17,8 @@ export const createLoanSchema = z.object({
     .int('El número de cuotas debe ser entero')
     .min(1, 'Mínimo 1 cuota')
     .max(72, 'Máximo 72 cuotas'),
-  monedaPrestamo: z.enum(['PEN', 'USD'], {
-    message: 'Moneda debe ser PEN o USD'
-  }),
-  monedaPago: z.enum(['PEN', 'USD'], {
-    message: 'Moneda de pago debe ser PEN o USD'
-  }),
+  monedaPrestamo: z.literal('PEN'),
+  monedaPago: z.literal('PEN'),
   fechaDesembolso: z
     .string()
     .refine(date => !isNaN(Date.parse(date)), 'Fecha de desembolso inválida'),
@@ -47,9 +43,7 @@ export const updateLoanSchema = z.object({
   fechaDesembolso: z
     .string()
     .refine(date => !isNaN(Date.parse(date)), 'Fecha de desembolso inválida'),
-  monedaPago: z.enum(['PEN', 'USD'], {
-    message: 'Moneda de pago debe ser PEN o USD'
-  })
+  monedaPago: z.literal('PEN')
 })
 
 export type UpdateLoanInput = z.infer<typeof updateLoanSchema>
