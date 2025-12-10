@@ -51,13 +51,6 @@ import {
   PopoverContent,
   PopoverTrigger
 } from '@/components/ui/popover'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 
 interface LoanFormProps {
@@ -347,87 +340,24 @@ export function LoanForm({ clients }: LoanFormProps) {
         </Card>
 
         {/* Monedas */}
+        {/* Configuración de Moneda - Solo PEN */}
         <Card>
           <CardHeader>
-            <CardTitle>Configuración de Moneda</CardTitle>
+            <CardTitle>Moneda del Préstamo</CardTitle>
             <CardDescription>
-              Selecciona las monedas del préstamo y pago
+              Todos los préstamos se manejan en Soles Peruanos (PEN)
             </CardDescription>
           </CardHeader>
-          <CardContent className='grid gap-6 md:grid-cols-2'>
-            {/* Moneda del Préstamo */}
-            <FormField
-              control={form.control}
-              name='monedaPrestamo'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Moneda del Préstamo *</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={isLoading}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value='PEN'>
-                        <div className='flex items-center gap-2'>
-                          <span className='font-semibold'>S/</span> Soles
-                          Peruanos
-                        </div>
-                      </SelectItem>
-                      <SelectItem value='USD'>
-                        <div className='flex items-center gap-2'>
-                          <span className='font-semibold'>$</span> Dólares
-                          Americanos
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Moneda de Pago */}
-            <FormField
-              control={form.control}
-              name='monedaPago'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Moneda de Pago *</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={isLoading}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value='PEN'>
-                        <div className='flex items-center gap-2'>
-                          <span className='font-semibold'>S/</span> Soles
-                          Peruanos
-                        </div>
-                      </SelectItem>
-                      <SelectItem value='USD'>
-                        <div className='flex items-center gap-2'>
-                          <span className='font-semibold'>$</span> Dólares
-                          Americanos
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <CardContent>
+            <div className='bg-muted/50 flex items-center gap-3 rounded-lg border p-4'>
+              <span className='text-2xl font-bold'>S/</span>
+              <div>
+                <p className='font-medium'>Soles Peruanos</p>
+                <p className='text-muted-foreground text-sm'>
+                  Moneda única del sistema
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

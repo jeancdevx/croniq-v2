@@ -4,7 +4,7 @@ import { createLoanSchema } from './schemas'
 
 export type CreateLoanInput = z.infer<typeof createLoanSchema>
 
-export type Moneda = 'PEN' | 'USD'
+export type Moneda = 'PEN' // Solo Soles Peruanos
 
 export type EstadoPrestamo = 'ACTIVO' | 'FINALIZADO' | 'ANULADO'
 export type EstadoCuota = 'PENDIENTE' | 'PAGADO' | 'VENCIDO'

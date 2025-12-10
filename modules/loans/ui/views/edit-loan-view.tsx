@@ -32,13 +32,6 @@ import {
   PopoverContent,
   PopoverTrigger
 } from '@/components/ui/popover'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 
 interface EditLoanViewProps {
   loan: PrestamoConCuotas
@@ -53,7 +46,6 @@ export function EditLoanView({ loan }: EditLoanViewProps) {
   const [fechaDesembolso, setFechaDesembolso] = useState<Date>(
     new Date(loan.fechaDesembolso + 'T00:00:00')
   )
-  const [monedaPago, setMonedaPago] = useState(loan.monedaPago)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -63,7 +55,7 @@ export function EditLoanView({ loan }: EditLoanViewProps) {
       const formData = new FormData()
       formData.append('numeroCuotas', numeroCuotas.toString())
       formData.append('fechaDesembolso', format(fechaDesembolso, 'yyyy-MM-dd'))
-      formData.append('monedaPago', monedaPago)
+      formData.append('monedaPago', 'PEN') // Siempre PEN
 
       const result = await updateLoan(loan.id, formData)
 
@@ -224,27 +216,6 @@ export function EditLoanView({ loan }: EditLoanViewProps) {
               <p className='text-muted-foreground text-xs'>
                 Máximo 45 días desde hoy. El día de vencimiento se calculará
                 automáticamente.
-              </p>
-            </div>
-
-            {/* Moneda de Pago */}
-            <div className='space-y-2'>
-              <Label htmlFor='monedaPago'>
-                Moneda de Pago <span className='text-destructive'>*</span>
-              </Label>
-              <Select value={monedaPago} onValueChange={setMonedaPago}>
-                <SelectTrigger id='monedaPago'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='PEN'>Soles (PEN)</SelectItem>
-                  <SelectItem value='USD'>Dólares (USD)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className='text-muted-foreground text-xs'>
-                {loan.monedaPrestamo !== monedaPago
-                  ? `Cambiando de ${loan.monedaPrestamo} → ${monedaPago}`
-                  : 'Igual a moneda de préstamo'}
               </p>
             </div>
           </CardContent>
