@@ -3,11 +3,18 @@
 import { eq } from 'drizzle-orm'
 
 import { getDb } from '@/db'
-import { comprobante, comprobanteDetalle } from '@/db/schema'
+import {
+  cliente,
+  comprobante,
+  comprobanteDetalle,
+  cuota,
+  pago
+} from '@/db/schema'
 
 import { generateComprobanteHash } from '../lib/generate-hash'
 import { generateQRData } from '../lib/generate-qr-data'
 import { getNextComprobanteNumber } from './get-next-number'
+import { getPagoCashDetails } from './get-pago-cash-details'
 import { getPagoFlowDetails } from './get-pago-flow-details'
 
 interface GenerateComprobanteResult {
@@ -17,12 +24,29 @@ interface GenerateComprobanteResult {
 }
 
 /**
- * Genera un comprobante de pago (Boleta/Factura) para un pago Flow
- * Un pago Flow puede cubrir múltiples cuotas
+ * Genera un comprobante de pago (Boleta/Factura) para un pago Flow o Efectivo
  */
-export async function generateComprobante(
-  pagoFlowId: string
-): Promise<GenerateComprobanteResult> {
+export async function generateComprobante(params: {
+  pagoFlowId?: string
+  pagoId?: string
+}): Promise<GenerateComprobanteResult> {
+  const { pagoFlowId, pagoId } = params
+
+  // Validar que se proporcione uno u otro
+  if (!pagoFlowId && !pagoId) {
+    return {
+      success: false,
+      error: 'Debe proporcionar pagoFlowId o pagoId'
+    }
+  }
+
+  if (pagoFlowId && pagoId) {
+    return {
+      success: false,
+      error: 'Solo puede proporcionar pagoFlowId o pagoId, no ambos'
+    }
+  }
+
   const db = getDb()
   if (!db) {
     return { success: false, error: 'No database connection' }
@@ -30,18 +54,51 @@ export async function generateComprobante(
 
   try {
     // 0. Verificar si ya existe comprobante
-    const [existing] = await db
-      .select()
-      .from(comprobante)
-      .where(eq(comprobante.pagoFlowId, pagoFlowId))
-      .limit(1)
+    if (pagoFlowId) {
+      const [existing] = await db
+        .select()
+        .from(comprobante)
+        .where(eq(comprobante.pagoFlowId, pagoFlowId))
+        .limit(1)
 
-    if (existing) {
-      return { success: true, comprobante: existing }
+      if (existing) {
+        return { success: true, comprobante: existing }
+      }
+    } else if (pagoId) {
+      const [existing] = await db
+        .select()
+        .from(comprobante)
+        .where(eq(comprobante.pagoId, pagoId))
+        .limit(1)
+
+      if (existing) {
+        return { success: true, comprobante: existing }
+      }
     }
 
     // 1. Obtener datos completos del pago
-    const details = await getPagoFlowDetails(pagoFlowId)
+    let clienteData: typeof cliente.$inferSelect
+    let montoTotal: number
+    let fechaPago: Date
+    let pagosArray: Array<{
+      pago: typeof pago.$inferSelect
+      cuota: typeof cuota.$inferSelect
+    }>
+
+    if (pagoFlowId) {
+      const details = await getPagoFlowDetails(pagoFlowId)
+      clienteData = details.cliente
+      montoTotal = Number(details.pagoFlow.monto)
+      fechaPago = details.pagoFlow.fechaPago || new Date()
+      pagosArray = details.pagos
+    } else {
+      // Pago en efectivo
+      const details = await getPagoCashDetails(pagoId!)
+      clienteData = details.cliente
+      montoTotal = Number(details.pago.montoTotalRecibido)
+      fechaPago = details.pago.fechaPago
+      pagosArray = [{ pago: details.pago, cuota: details.cuota }]
+    }
 
     // 2. Validar que haya datos de empresa en .env
     const empresaRuc = process.env.EMPRESA_RUC
@@ -66,10 +123,10 @@ export async function generateComprobante(
       serie,
       numero,
       igv: 0, // Servicios financieros exonerados
-      total: Number(details.pagoFlow.monto),
-      fecha: details.pagoFlow.fechaPago || new Date(),
+      total: montoTotal,
+      fecha: fechaPago,
       tipoDocCliente: '1', // DNI
-      numDocCliente: details.cliente.dni
+      numDocCliente: clienteData.dni
     })
 
     // 6. Generar Hash
@@ -77,22 +134,23 @@ export async function generateComprobante(
       ruc: empresaRuc,
       serie,
       numero,
-      fecha: details.pagoFlow.fechaPago || new Date(),
-      total: Number(details.pagoFlow.monto),
-      clienteDni: details.cliente.dni
+      fecha: fechaPago,
+      total: montoTotal,
+      clienteDni: clienteData.dni
     })
 
     // 7. Crear registro de comprobante
     const [nuevoComprobante] = await db
       .insert(comprobante)
       .values({
-        pagoFlowId: pagoFlowId,
+        pagoFlowId: pagoFlowId || null,
+        pagoId: pagoId || null,
         tipoComprobante,
         serie,
         numero,
         numeroCompleto,
-        fechaEmision: details.pagoFlow.fechaPago || new Date(),
-        montoTotal: details.pagoFlow.monto,
+        fechaEmision: fechaPago,
+        montoTotal: montoTotal.toString(),
         igv: '0.00',
         hash,
         qrData,
@@ -101,8 +159,8 @@ export async function generateComprobante(
       .returning()
 
     // 8. Crear detalles (uno por cada cuota afectada)
-    for (let i = 0; i < details.pagos.length; i++) {
-      const { pago: pagoItem, cuota } = details.pagos[i]
+    for (let i = 0; i < pagosArray.length; i++) {
+      const { pago: pagoItem, cuota } = pagosArray[i]
 
       // Determinar si la cuota quedó completa o parcial
       const saldoRestante = Number(cuota.saldoPendiente || 0)
