@@ -52,7 +52,8 @@ export async function activateLoan(
     }
 
     // Validar que haya sesión de caja abierta
-    const { getSesionActual } = await import('@/modules/caja/server')
+    const { getSesionActual, calcularEfectivoDisponible } =
+      await import('@/modules/caja/server')
     const sesionResult = await getSesionActual()
 
     if (!sesionResult.success || !sesionResult.sesionAbierta) {
@@ -60,6 +61,26 @@ export async function activateLoan(
         success: false,
         error:
           'No hay sesión de caja abierta. Debes abrir caja antes de desembolsar préstamos.'
+      }
+    }
+
+    // Validar que haya suficiente efectivo disponible
+    const efectivoResult = await calcularEfectivoDisponible()
+    const montoDesembolso = Number(existingLoan.montoDesembolsado)
+
+    if (!efectivoResult.success) {
+      return {
+        success: false,
+        error: 'Error al verificar efectivo disponible en caja'
+      }
+    }
+
+    const efectivoDisponible = efectivoResult.efectivoDisponible || 0
+
+    if (efectivoDisponible < montoDesembolso) {
+      return {
+        success: false,
+        error: `Efectivo insuficiente en caja. Disponible: S/ ${efectivoDisponible.toFixed(2)}, Necesario: S/ ${montoDesembolso.toFixed(2)}. Debes inyectar S/ ${(montoDesembolso - efectivoDisponible).toFixed(2)} adicionales.`
       }
     }
 
@@ -86,7 +107,6 @@ export async function activateLoan(
     // Crear movimiento de caja (egreso por desembolso)
     try {
       const { crearMovimientoCaja } = await import('@/modules/caja/server')
-      const montoDesembolso = Number(existingLoan.montoDesembolsado)
 
       await crearMovimientoCaja({
         tipo: 'EGRESO',
