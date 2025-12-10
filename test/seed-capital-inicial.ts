@@ -9,7 +9,7 @@ dotenv.config()
 // ============================================
 // CONFIGURACIÓN
 // ============================================
-const CAPITAL_INICIAL = 50000.0 // ← Cambiar según capital real
+const CAPITAL_INICIAL = 5000.0 // ← Cambiar según capital real
 const FECHA_INICIO = '2025-01-01' // ← Fecha de inicio de operaciones
 
 async function main() {
