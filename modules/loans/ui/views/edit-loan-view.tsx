@@ -44,7 +44,8 @@ export function EditLoanView({ loan }: EditLoanViewProps) {
   // Estado del formulario
   const [numeroCuotas, setNumeroCuotas] = useState(loan.numeroCuotas)
   const [fechaDesembolso, setFechaDesembolso] = useState<Date>(
-    new Date(loan.fechaDesembolso + 'T00:00:00')
+    // IMPORTANTE: Usar T12:00:00 para evitar problemas de timezone
+    new Date(loan.fechaDesembolso + 'T12:00:00')
   )
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

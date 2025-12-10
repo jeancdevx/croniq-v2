@@ -106,8 +106,12 @@ export function LoanDetailDraftView({ loan }: LoanDetailDraftViewProps) {
   }
 
   // Helper para formatear fechas desde ISO string (YYYY-MM-DD)
+  // IMPORTANTE: Agregar T12:00:00 para evitar que parseISO interprete como UTC midnight
+  // lo cual restaría un día en Perú (UTC-5)
   const formatDate = (dateStr: string) => {
-    return format(parseISO(dateStr), 'dd/MM/yyyy', { locale: es })
+    // Si la fecha ya tiene hora, no agregar
+    const dateWithTime = dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00'
+    return format(parseISO(dateWithTime), 'dd/MM/yyyy', { locale: es })
   }
 
   return (
