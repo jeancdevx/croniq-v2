@@ -2,12 +2,14 @@ import { relations } from 'drizzle-orm'
 
 import { cliente } from './cliente.schema'
 import { cuota } from './cuota.schema'
+import { mensaje } from './mensaje.schema'
 import { pagoFlow } from './pago-flow.schema'
 import { pago } from './pago.schema'
 import { prestamo } from './prestamo.schema'
 
 export const clienteRelations = relations(cliente, ({ many }) => ({
-  prestamos: many(prestamo)
+  prestamos: many(prestamo),
+  mensajes: many(mensaje)
 }))
 
 export const prestamoRelations = relations(prestamo, ({ one, many }) => ({
@@ -44,5 +46,12 @@ export const pagoFlowRelations = relations(pagoFlow, ({ one }) => ({
   pago: one(pago, {
     fields: [pagoFlow.id],
     references: [pago.pagoFlowId]
+  })
+}))
+
+export const mensajeRelations = relations(mensaje, ({ one }) => ({
+  cliente: one(cliente, {
+    fields: [mensaje.clienteId],
+    references: [cliente.id]
   })
 }))

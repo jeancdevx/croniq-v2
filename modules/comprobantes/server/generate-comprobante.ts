@@ -1,5 +1,7 @@
 'use server'
 
+import { eq } from 'drizzle-orm'
+
 import { getDb } from '@/db'
 import { comprobante, comprobanteDetalle } from '@/db/schema'
 
@@ -27,6 +29,17 @@ export async function generateComprobante(
   }
 
   try {
+    // 0. Verificar si ya existe comprobante
+    const [existing] = await db
+      .select()
+      .from(comprobante)
+      .where(eq(comprobante.pagoFlowId, pagoFlowId))
+      .limit(1)
+
+    if (existing) {
+      return { success: true, comprobante: existing }
+    }
+
     // 1. Obtener datos completos del pago
     const details = await getPagoFlowDetails(pagoFlowId)
 

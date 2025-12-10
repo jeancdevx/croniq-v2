@@ -159,9 +159,17 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
 
   // Fetch loans when client changes
   useEffect(() => {
+    // Reset previous loan data immediately when client changes
+    form.setValue('loanId', '')
+    form.setValue('baseAmount', 0)
+    form.setValue('concept', '')
+    setInstallments([])
+    setLoans([])
+    setPaymentMode('INSTALLMENT')
+    setCashReceived('')
+
     const fetchLoans = async () => {
       if (!selectedClientId) {
-        setLoans([])
         return
       }
 
@@ -178,7 +186,7 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
     }
 
     fetchLoans()
-  }, [selectedClientId])
+  }, [selectedClientId, form])
 
   // Fetch installments when loan changes
   useEffect(() => {
@@ -203,6 +211,13 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
 
     fetchInstallments()
   }, [selectedLoanId])
+
+  // Auto-select loan if only one active exists
+  useEffect(() => {
+    if (loans.length === 1) {
+      form.setValue('loanId', loans[0].id)
+    }
+  }, [loans, form])
 
   const pendingInstallments = installments.filter(i => i.estado !== 'PAGADO')
   const totalDebt = pendingInstallments.reduce(
@@ -339,6 +354,16 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
       ).toLocaleDateString()}`
     )
   }
+
+  // Auto-select next installment
+  useEffect(() => {
+    if (installments.length > 0 && paymentMode === 'INSTALLMENT') {
+      const nextInstallment = installments.find(i => i.estado !== 'PAGADO')
+      if (nextInstallment) {
+        handleSelectInstallment(nextInstallment)
+      }
+    }
+  }, [installments, paymentMode])
 
   if (generatedLink) {
     return (
@@ -488,7 +513,7 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
                   )}
                 />
 
-                {selectedClientId && (
+                {selectedClientId && loans.length > 1 && (
                   <FormField
                     control={form.control}
                     name='loanId'
@@ -536,6 +561,28 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
                       </FormItem>
                     )}
                   />
+                )}
+
+                {selectedClientId && loans.length === 1 && (
+                  <div className='flex flex-col gap-2'>
+                    <Label>Préstamo Activo</Label>
+                    <div className='rounded-md border p-3 text-sm'>
+                      Préstamo del{' '}
+                      {new Date(loans[0].createdAt).toLocaleDateString()} - S/{' '}
+                      {Number(loans[0].montoSolicitado).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+
+                {selectedClientId && loans.length === 0 && !isLoadingLoans && (
+                  <div className='flex flex-col gap-2'>
+                    <Label className='text-muted-foreground'>
+                      Estado del Préstamo
+                    </Label>
+                    <div className='bg-muted/50 text-muted-foreground rounded-md border border-dashed p-3 text-sm'>
+                      El cliente seleccionado no tiene préstamos activos.
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -599,49 +646,23 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
                   </RadioGroup>
                 </div>
 
-                {paymentMode === 'INSTALLMENT' && (
-                  <div className='space-y-2'>
-                    <Label>Seleccionar Cuota</Label>
-                    <Select
-                      onValueChange={val => {
-                        const installment = pendingInstallments.find(
-                          i => i.id === val
-                        )
-                        if (installment) handleSelectInstallment(installment)
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={
-                            isLoadingInstallments
-                              ? 'Cargando cuotas...'
-                              : 'Seleccione una cuota pendiente'
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pendingInstallments.length === 0 ? (
-                          <SelectItem value='none' disabled>
-                            No hay cuotas pendientes
-                          </SelectItem>
-                        ) : (
-                          pendingInstallments.map(i => (
-                            <SelectItem key={i.id} value={i.id}>
-                              Cuota #{i.numeroCuota} - Vence{' '}
-                              {new Date(
-                                i.fechaVencimiento
-                              ).toLocaleDateString()}{' '}
-                              - S/{' '}
-                              {Number(
-                                i.saldoPendiente ?? i.totalConSeguro
-                              ).toFixed(2)}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                {paymentMode === 'INSTALLMENT' &&
+                  pendingInstallments.length > 0 && (
+                    <div className='space-y-2'>
+                      <Label>Cuota a Pagar (Siguiente Cuota Pendiente)</Label>
+                      <div className='bg-muted rounded-md border p-3 text-sm font-medium'>
+                        Cuota #{pendingInstallments[0].numeroCuota} - Vence{' '}
+                        {new Date(
+                          pendingInstallments[0].fechaVencimiento
+                        ).toLocaleDateString()}{' '}
+                        - S/{' '}
+                        {Number(
+                          pendingInstallments[0].saldoPendiente ??
+                            pendingInstallments[0].totalConSeguro
+                        ).toFixed(2)}
+                      </div>
+                    </div>
+                  )}
 
                 <FormField
                   control={form.control}
@@ -804,7 +825,10 @@ export function PaymentsForm({ clients = [] }: PaymentsFormProps) {
                     : ''
                 )}
                 disabled={
-                  isLoading || (paymentType === 'EFECTIVO' && !canProcessCash)
+                  isLoading ||
+                  isLoadingLoans ||
+                  loans.length === 0 ||
+                  (paymentType === 'EFECTIVO' && !canProcessCash)
                 }
               >
                 {isLoading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
