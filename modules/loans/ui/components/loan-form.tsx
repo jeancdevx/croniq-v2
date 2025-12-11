@@ -350,12 +350,11 @@ export function LoanForm() {
                             setOpenCalendar(false)
                           }
                         }}
-                        disabled={date => {
-                          const today = new Date()
-                          today.setHours(23, 59, 59, 999) // Fin del día de hoy
-                          // Solo bloquear fechas FUTURAS (no pasadas)
-                          // Esto permite crear préstamos en el pasado para testing de moras
-                          return date > today
+                        disabled={_date => {
+                          // Permitir cualquier fecha (pasada o futura)
+                          // - Pasadas: para testing de moras
+                          // - Futuras: para préstamos programados
+                          return false
                         }}
                         initialFocus
                         locale={es}
