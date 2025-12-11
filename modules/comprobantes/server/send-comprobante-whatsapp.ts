@@ -4,7 +4,13 @@ import { renderToBuffer } from '@react-pdf/renderer'
 import { eq } from 'drizzle-orm'
 
 import { getDb } from '@/db'
-import { cliente, comprobante, comprobanteDetalle } from '@/db/schema'
+import {
+  cliente,
+  comprobante,
+  comprobanteDetalle,
+  cuota,
+  prestamo
+} from '@/db/schema'
 import { createWazendClient } from '@/lib/wazend-client'
 
 import { generateQRImage } from '../lib/generate-qr-image'
@@ -44,11 +50,49 @@ export async function sendComprobanteWhatsApp(
       const details = await getPagoFlowDetails(comprobanteData.pagoFlowId)
       clienteData = details.cliente
     } else if (comprobanteData.pagoId) {
-      // Es un pago en efectivo
+      // Es un pago en efectivo individual
       const details = await getPagoCashDetails(comprobanteData.pagoId)
       clienteData = details.cliente
     } else {
-      throw new Error('Comprobante no tiene pago asociado')
+      // Es un comprobante generado con numeroRecibo (múltiples pagos)
+      // Obtener cliente desde los detalles del comprobante
+      const [firstDetail] = await db
+        .select({ cuotaId: comprobanteDetalle.cuotaId })
+        .from(comprobanteDetalle)
+        .where(eq(comprobanteDetalle.comprobanteId, comprobanteId))
+        .limit(1)
+
+      if (!firstDetail) {
+        throw new Error('No se encontraron detalles del comprobante')
+      }
+
+      // Obtener cliente desde la cuota
+      const [cuotaData] = await db
+        .select({
+          prestamoId: cuota.prestamoId
+        })
+        .from(cuota)
+        .where(eq(cuota.id, firstDetail.cuotaId))
+        .limit(1)
+
+      if (!cuotaData) {
+        throw new Error('No se encontró la cuota')
+      }
+
+      const [prestamoData] = await db
+        .select({
+          cliente: cliente
+        })
+        .from(prestamo)
+        .innerJoin(cliente, eq(prestamo.clienteId, cliente.id))
+        .where(eq(prestamo.id, cuotaData.prestamoId))
+        .limit(1)
+
+      if (!prestamoData) {
+        throw new Error('No se encontró el cliente')
+      }
+
+      clienteData = prestamoData.cliente
     }
 
     // 3. Obtener detalles del comprobante

@@ -29,21 +29,26 @@ interface GenerateComprobanteResult {
 export async function generateComprobante(params: {
   pagoFlowId?: string
   pagoId?: string
+  numeroRecibo?: string // NUEVO: para pagos en efectivo con múltiples cuotas
 }): Promise<GenerateComprobanteResult> {
-  const { pagoFlowId, pagoId } = params
+  const { pagoFlowId, pagoId, numeroRecibo } = params
 
-  // Validar que se proporcione uno u otro
-  if (!pagoFlowId && !pagoId) {
+  // Validar que se proporcione uno
+  if (!pagoFlowId && !pagoId && !numeroRecibo) {
     return {
       success: false,
-      error: 'Debe proporcionar pagoFlowId o pagoId'
+      error: 'Debe proporcionar pagoFlowId, pagoId o numeroRecibo'
     }
   }
 
-  if (pagoFlowId && pagoId) {
+  if (
+    (pagoFlowId && pagoId) ||
+    (pagoFlowId && numeroRecibo) ||
+    (pagoId && numeroRecibo)
+  ) {
     return {
       success: false,
-      error: 'Solo puede proporcionar pagoFlowId o pagoId, no ambos'
+      error: 'Solo puede proporcionar uno: pagoFlowId, pagoId o numeroRecibo'
     }
   }
 
@@ -75,6 +80,7 @@ export async function generateComprobante(params: {
         return { success: true, comprobante: existing }
       }
     }
+    // No verificamos para numeroRecibo porque puede haber múltiples comprobantes
 
     // 1. Obtener datos completos del pago
     let clienteData: typeof cliente.$inferSelect
@@ -91,8 +97,20 @@ export async function generateComprobante(params: {
       montoTotal = Number(details.pagoFlow.monto)
       fechaPago = details.pagoFlow.fechaPago || new Date()
       pagosArray = details.pagos
+    } else if (numeroRecibo) {
+      // NUEVO: Obtener TODOS los pagos del recibo
+      const { getPagosByReceipt } = await import('./get-pago-cash-details')
+      const details = await getPagosByReceipt(numeroRecibo)
+      clienteData = details.cliente
+      // Sumar todos los montos
+      montoTotal = details.pagos.reduce(
+        (sum, p) => sum + Number(p.pago.montoTotalRecibido),
+        0
+      )
+      fechaPago = details.pagos[0].pago.fechaPago
+      pagosArray = details.pagos
     } else {
-      // Pago en efectivo
+      // Pago en efectivo individual (pagoId)
       const details = await getPagoCashDetails(pagoId!)
       clienteData = details.cliente
       montoTotal = Number(details.pago.montoTotalRecibido)
