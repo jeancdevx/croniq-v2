@@ -841,45 +841,36 @@ export async function registerCashPayment(data: {
       const { generateComprobante, sendComprobanteWhatsApp } =
         await import('@/modules/comprobantes/server')
 
-      // Obtener el último pago registrado con este recibo
-      const [lastPayment] = await db
-        .select()
-        .from(pago)
-        .where(eq(pago.numeroRecibo, receiptNumber))
-        .orderBy(pago.fechaPago)
-        .limit(1)
+      // Generar comprobante usando el número de recibo
+      // Esto incluirá TODAS las cuotas pagadas en este recibo
+      const comprobanteResult = await generateComprobante({
+        numeroRecibo: receiptNumber
+      })
 
-      if (lastPayment) {
-        // Generar comprobante
-        const comprobanteResult = await generateComprobante({
-          pagoId: lastPayment.id
-        })
+      if (comprobanteResult.success && comprobanteResult.comprobante) {
+        // Obtener teléfono del cliente
+        const [loanData] = await db
+          .select({ clienteId: prestamo.clienteId })
+          .from(prestamo)
+          .where(eq(prestamo.id, data.loanId))
+          .limit(1)
 
-        if (comprobanteResult.success && comprobanteResult.comprobante) {
-          // Obtener teléfono del cliente
-          const [loanData] = await db
-            .select({ clienteId: prestamo.clienteId })
-            .from(prestamo)
-            .where(eq(prestamo.id, data.loanId))
+        if (loanData) {
+          const [clientData] = await db
+            .select({ telefono: cliente.telefono })
+            .from(cliente)
+            .where(eq(cliente.id, loanData.clienteId))
             .limit(1)
 
-          if (loanData) {
-            const [clientData] = await db
-              .select({ telefono: cliente.telefono })
-              .from(cliente)
-              .where(eq(cliente.id, loanData.clienteId))
-              .limit(1)
-
-            if (clientData?.telefono) {
-              // Enviar comprobante por WhatsApp
-              await sendComprobanteWhatsApp(
-                comprobanteResult.comprobante.id,
-                clientData.telefono
-              )
-              console.log(
-                `✅ Comprobante enviado automáticamente: ${comprobanteResult.comprobante.numeroCompleto}`
-              )
-            }
+          if (clientData?.telefono) {
+            // Enviar comprobante por WhatsApp
+            await sendComprobanteWhatsApp(
+              comprobanteResult.comprobante.id,
+              clientData.telefono
+            )
+            console.log(
+              `✅ Comprobante enviado automáticamente: ${comprobanteResult.comprobante.numeroCompleto} (${processedCount} cuota(s))`
+            )
           }
         }
       }
