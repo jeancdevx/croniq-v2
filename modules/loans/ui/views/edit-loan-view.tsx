@@ -203,20 +203,16 @@ export function EditLoanView({ loan }: EditLoanViewProps) {
                     mode='single'
                     selected={fechaDesembolso}
                     onSelect={date => date && setFechaDesembolso(date)}
-                    disabled={date => {
-                      const today = new Date()
-                      today.setHours(0, 0, 0, 0)
-                      const maxDate = new Date()
-                      maxDate.setDate(maxDate.getDate() + 45)
-                      return date < today || date > maxDate
+                    disabled={_date => {
+                      // Permitir cualquier fecha (pasada, presente o futura)
+                      return false
                     }}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
               <p className='text-muted-foreground text-xs'>
-                Máximo 45 días desde hoy. El día de vencimiento se calculará
-                automáticamente.
+                Selecciona la fecha de desembolso del préstamo.
               </p>
             </div>
           </CardContent>
