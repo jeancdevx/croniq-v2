@@ -152,12 +152,6 @@ export function LoanDetailActiveView({ loan }: LoanDetailActiveViewProps) {
                 <span className='text-muted-foreground'>TCEA:</span>
                 <span className='font-medium'>{loan.tcea}%</span>
               </div>
-              <div className='flex justify-between text-sm'>
-                <span className='text-muted-foreground'>Seguro:</span>
-                <span className='font-medium'>
-                  {loan.tasaSeguroDesgravamen}%
-                </span>
-              </div>
               <div className='mt-1 flex justify-between border-t pt-1 text-sm'>
                 <span className='text-muted-foreground'>Total Interés:</span>
                 <span className='font-medium'>
