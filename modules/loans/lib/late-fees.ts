@@ -36,8 +36,18 @@ export interface ResultadoPago {
 }
 
 /**
- * Calcula los meses de atraso desde la fecha de vencimiento
- * Solo cuenta meses completos transcurridos
+ * Calcula los períodos de mora desde la fecha de vencimiento
+ *
+ * Modelo: La mora empieza el DÍA SIGUIENTE al vencimiento.
+ * Cada mes que pasa suma otro 1%.
+ *
+ * Ejemplo (vence 01 ago, hoy 10 dic):
+ * - 02 ago → 01 sep = período 1 (1%)
+ * - 02 sep → 01 oct = período 2 (2%)
+ * - 02 oct → 01 nov = período 3 (3%)
+ * - 02 nov → 01 dic = período 4 (4%)
+ * - 02 dic → 10 dic = período 5 (5%)
+ * Total: 5 períodos = 5% de mora
  */
 export const calculateMonthsOverdue = (
   fechaVencimiento: Date,
@@ -46,16 +56,15 @@ export const calculateMonthsOverdue = (
   const vencimiento = startOfDay(fechaVencimiento)
   const actual = startOfDay(fechaActual)
 
-  // Si no está vencida, 0 meses
+  // Si no está vencida (hoy es el día de vencimiento o antes), 0 períodos
   if (!isAfter(actual, vencimiento)) {
     return 0
   }
 
-  // Calcular meses completos de diferencia
+  // Calcular meses completos de diferencia y sumar 1 para el período actual
+  // Ejemplo: 01 ago → 10 dic = 4 meses + 1 = 5 períodos
   const meses = differenceInMonths(actual, vencimiento)
-
-  // Si han pasado días pero menos de un mes, cuenta como 1
-  return Math.max(meses, 1)
+  return meses + 1
 }
 
 /**
